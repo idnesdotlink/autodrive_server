@@ -6,9 +6,6 @@
 
         <title>Autodrive</title>
 
-        <!-- Fonts -->
-        <link href="https://fonts.googleapis.com/css?family=Nunito:200,600" rel="stylesheet" type="text/css">
-
         <!-- Styles -->
         <style>
             html, body {
@@ -84,12 +81,16 @@
                     Autodrive
                 </div>
                 <div>
-                    <a href="{{ url('/create') }}">Create</a>
-                    <a href="{{ url('/delete') }}">Delete</a>
-                    <a href="{{ url('/count') }}">Count</a>
-                    <a href="{{ url('/sessions') }}">Sessions</a>
-                    <a href="{{ url('/list') }}">List</a>
-                    <a href="{{ url('/api/test') }}">API</a>
+                    <a href="{{ route('db.delete') }}">Delete</a>
+                    <a href="{{ route('db.create') }}">Create</a>
+                    <a href="{{ route('db.count') }}">Count</a>
+                    <a href="{{ route('db.sessions') }}">Sessions</a>
+                    <a href="{{ route('db.migrate') }}">Migrate</a>
+                    <a href="{{ route('db.list') }}">List</a>
+                    <a href="{{ route('db.seed') }}">Seed</a>
+                    <a href="{{ route('db.hierarchy') }}">Hierarchy</a>
+                    <a href="{{ route('db.api') }}">API</a>
+                    <a href="{{ route('db.add') }}">Add</a>
                 </div>
                 @if (session('status'))
                 <div class="alert alert-success">
@@ -101,6 +102,11 @@
                     @foreach (session('tables') as $name)
                     <p>{{ $name }}</p>
                     @endforeach
+                </div>
+                @endif
+                @if (session('error'))
+                <div class="alert alert-success">
+                    <code>{{ session('error') }}</code>
                 </div>
                 @endif
             </div>

@@ -78,8 +78,48 @@
 
             <div class="content">
                 <div class="title m-b-md">
-                    Autodrive A.P.I
+                    Autodrive Add
                 </div>
+                <div>
+                    <form action="{{ route('db.a.add') }}" method="POST">
+                        @csrf
+                        <label for="parent">
+                            Parent
+                            <input type="text" name="parent"/>
+                        </label>
+                        <label for="name">
+                            Nama
+                            <input type="text" name="name"/>
+                        </label>
+                        <input type="submit" value="submit"/>
+                    </form>
+                </div>
+                @if (session('data'))
+                <div class="alert alert-success">
+                    @if (session('data'))
+                        @if (session('data')['tables'])
+                            @foreach (session('data')['tables'] as $tbl)
+                                <p>{{ $tbl->tbl }}</p>
+                            @endforeach
+                        @endif
+                        @if (session('data')['psg'])
+                        PSG[{{ session('data')['psg'] }}]
+                        @endif
+                    @endif
+                </div>
+                @endif
+                @if (session('tables'))
+                <div class="alert alert-success">
+                    @foreach (session('tables') as $name)
+                    <p>{{ $name }}</p>
+                    @endforeach
+                </div>
+                @endif
+                @if (session('error'))
+                <div class="alert alert-success">
+                    <code>{{ session('error') }}</code>
+                </div>
+                @endif
             </div>
         </div>
     </body>

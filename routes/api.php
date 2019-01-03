@@ -2,11 +2,54 @@
 
 use Illuminate\Http\Request;
 
-Route::middleware('auth:api')->get('/user', function (Request $request) {
-    // return $request->user();
-});
+Route::middleware([])->group(
+    function () {
+        Route::get('/companies/{company}', function (Request $request) {
+            return $request->company;
+        })->name('companies.index');
 
-Route::middleware('auth:api')->get('/test', function (Request $request) {
-    // return $request->user();
-    return 0;
-});
+        Route::get('/companies/{company}/members', function (Request $request) {
+            return [$request->company];
+        })->name('companies.members.index');
+
+        Route::get('/members', function (Request $request) {
+            return 'members';
+        })->name('members.index');
+
+        Route::get('/members/{member}/token', function (Request $request) {
+            return $request->member . '-token';
+        })->name('members.token');
+
+        Route::get('/members/{member}', function (Request $request) {
+            return $request->member;
+        })->name('members.detail');
+
+        Route::get('/members/{member}/payment', function (Request $request) {
+            return $request->member;
+        })->name('members.payment');
+
+        Route::get('/psg', function (Request $request) {
+            return 0;
+        })->name('db.api');
+
+        Route::get('/users', function (Request $request) {
+            return 0;
+        })->name('users.index');
+
+        Route::get('/users/{user}/token', function (Request $request) {
+            return [$request->user];
+        })->name('users.token');
+
+        Route::get('/products', function (Request $request) {
+            return 'products';
+        })->name('products.index');
+
+        Route::get('/products/{product}', function (Request $request) {
+            return [$request->product];
+        })->name('products.detail');
+
+        Route::get('/payments/{payment}', function (Request $request) {
+            return [$request->payment];
+        })->name('payments.detail');
+    }
+);
