@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\Input;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Artisan;
 
-function get_ancestors() {
+/* function get_ancestors() {
     $db = DB::connection('autodrive_tip');
     $query = '
     WITH RECURSIVE ancestorPath AS (
@@ -26,11 +26,7 @@ function get_ancestors() {
     ';
     $ancestors = $db->select($query);
     return $ancestors;
-}
-
-function get_descendants() {
-
-}
+} */
 
 function get_dummy_levels() {
     $levels_dummy_data = [
@@ -85,23 +81,27 @@ function tables($drop = false) {
             $db->statement('DROP TABLE IF EXISTS levels');
             $db->statement('
                 CREATE TABLE levels (
-                    id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    id TINYINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                     name VARCHAR(32) NOT NULL,
-                    requirement TINYINT(1) NOT NULL,
-                    qualification TINYINT(1) NOT NULL
+                    requirement TINYINT NOT NULL,
+                    qualified INT(32) NOT NULL,
+                    unqualified INT(32) NOT NULL,
+                    treshold TINYINT unsigned NOT NULL DEFAULT 0
                 )
             ');
             $db->statement('DROP TABLE IF EXISTS members');
             $db->statement('
                 CREATE TABLE members (
-                    id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                    parentId INT(6) NOT NULL DEFAULT 0,
-                    name VARCHAR(30) NOT NULL,
-                    level TINYINT(1) NOT NULL DEFAULT 1,
-                    qualification TINYINT(1) NOT NULL DEFAULT 1,
+                    id MEDIUMINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    parentId MEDIUMINT NOT NULL DEFAULT 0,
+                    name VARCHAR(128) NOT NULL,
+                    level TINYINT UNSIGNED NOT NULL DEFAULT 1,
+                    qualification TINYINT UNSIGNED NOT NULL DEFAULT 1,
                     downlineLevelCount VARCHAR(512) NOT NULL DEFAULT "[]",
-                    downlineCount INT(11),
-                    levelHistory VARCHAR(512) NOT NULL DEFAULT "[]",
+                    downlineCount INT(11) UNSIGNED,
+                    levelHistory VARCHAR(256) NOT NULL DEFAULT "[]",
+                    status TINYINT UNSIGNED NOT NULL DEFAULT 1,
+                    created DATETIME NOT NULL DEFAULT NOW(),
                     CHECK (JSON_VALID(downlineLevelCount)),
                     CHECK (JSON_VALID(levelHistory))
                 )
@@ -113,6 +113,25 @@ function tables($drop = false) {
                     month CHAR(2) NOT NULL,
                     year CHAR(4) NOT NULL,
                     revenue DOUBLE UNSIGNED DEFAULT 0
+                )
+            ');
+            $db->statement('DROP TABLE IF EXISTS member_purchase');
+            $db->statement('
+                CREATE TABLE member_purchase (
+                    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    memberId MEDIUMINT,
+                    created DATETIME,
+                    amount DOUBLE UNSIGNED DEFAULT 0
+                )
+            ');
+            $db->statement('DROP TABLE IF EXISTS promo');
+            $db->statement('
+                CREATE TABLE promo (
+                    id SMALLINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    created DATETIME,
+                    validUntil DATETIME,
+                    note TEXT,
+                    image 
                 )
             ');
         }
@@ -134,6 +153,27 @@ function drop_all_table() {
             }
         }
     );
+}
+
+function get_ancestors($search, $key = 'id') {
+    $db = DB::connection('autodrive_tip');
+    $query = '
+    WITH RECURSIVE ancestor AS
+    (
+        SELECT * FROM members WHERE ' . $key . '="' . $search .  '"
+        UNION ALL
+        SELECT member.*
+        FROM members member
+        JOIN ancestor
+        ON member.id=ancestor.parentId
+    ),
+    get AS (
+        SELECT * FROM ancestor
+    )
+    SELECT * FROM get
+';
+    $ancestors = $db->select($query);
+    return $ancestors;
 }
 
 Route::domain('api.trial205.tiptech.network')->group(function () {
@@ -449,14 +489,16 @@ Route::post('/db/l', function () {
 
 })->name('db.a.add');
 
-Route::get('/descendants', function () {
-
+Route::get('/db/descendants/{descendant}', function () {
+    $id = request()->descendant;
+    $ancestors = collect(get_ancestors($id));
+    print_r($ancestors->where('level', 7));
 })->name('db.descendants');
 
-Route::get('/descendants', function () {
+Route::get('/db/descendants', function () {
 
 })->name('api.descendants');
 
-Route::get('/ancestors', function () {
+Route::get('/db/ancestors', function () {
 
 })->name('api.ancestors');
