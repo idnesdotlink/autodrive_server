@@ -32,6 +32,110 @@ function get_descendants() {
 
 }
 
+function get_dummy_levels() {
+    $levels_dummy_data = [
+        [1, null],
+        [2,3],
+        [3,4],
+        [4,5],
+        [5,3],
+        [6,4],
+        [7,3],
+        [8,4],
+        [9,4]
+    ];
+    $collection = collect($levels_dummy_data);
+    return $collection;
+}
+
+function get_dummy_members() {
+    $members_dummy_data = json_decode(include_once('members.php'), true);
+    $collection = collect($members_dummy_data);
+    return $collection;
+}
+
+function insert_dummy_members() {
+    $db = DB::connection('autodrive_tip');
+    $members = $db->table('members');
+    $dummy = get_dummy_members();
+    $db->transaction(
+        function () use($members, $dummy) {
+            $chunk = $dummy->chunk(1000);
+            foreach($chunk as $chunked) {
+                $withName = $chunked->map(function($item) {
+                    $item['parentId'] = $item['parentId'] ? $item['parentId'] : 0;
+                    $item['name'] = 'name_' . $item['id'];
+                    return $item;
+                });
+                $members->insert($withName->all());
+            }
+        }
+    );
+}
+
+function insert_dummy_levels($db) {
+    $levels = $db->table('levels');
+    $dummy = get_dummy_levels();
+}
+
+function tables($drop = false) {
+    $db = DB::connection('autodrive_tip');
+    $db->transaction(
+        function () use($db) {
+            $db->statement('DROP TABLE IF EXISTS levels');
+            $db->statement('
+                CREATE TABLE levels (
+                    id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    name VARCHAR(32) NOT NULL,
+                    requirement TINYINT(1) NOT NULL,
+                    qualification TINYINT(1) NOT NULL
+                )
+            ');
+            $db->statement('DROP TABLE IF EXISTS members');
+            $db->statement('
+                CREATE TABLE members (
+                    id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    parentId INT(6) NOT NULL DEFAULT 0,
+                    name VARCHAR(30) NOT NULL,
+                    level TINYINT(1) NOT NULL DEFAULT 1,
+                    qualification TINYINT(1) NOT NULL DEFAULT 1,
+                    downlineLevelCount VARCHAR(512) NOT NULL DEFAULT "[]",
+                    downlineCount INT(11),
+                    levelHistory VARCHAR(512) NOT NULL DEFAULT "[]",
+                    CHECK (JSON_VALID(downlineLevelCount)),
+                    CHECK (JSON_VALID(levelHistory))
+                )
+            ');
+            $db->statement('DROP TABLE IF EXISTS member_revenue');
+            $db->statement('
+                CREATE TABLE member_revenue (
+                    memberId INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    month CHAR(2) NOT NULL,
+                    year CHAR(4) NOT NULL,
+                    revenue DOUBLE UNSIGNED DEFAULT 0
+                )
+            ');
+        }
+    );
+}
+
+function drop_all_table() {
+    $dbName = 'autodrive_1';
+    $key = 'Tables_in_' . $dbName;
+    $db = DB::connection('autodrive_tip');
+    $db->transaction(
+        function () use($db, $key) {
+            $tables = $db->select('show tables');
+            $size = sizeof($tables);
+            if($size > 0) {
+                foreach($tables as $table) {
+                    $db->statement('DROP TABLE IF EXISTS ' . $table->$key);
+                }
+            }
+        }
+    );
+}
+
 Route::domain('api.trial205.tiptech.network')->group(function () {
     Route::get('/', function () {
         return view('api.welcome');
@@ -52,79 +156,27 @@ Route::get('/db', function () {
 
 Route::get('/db/create', function () {
     try {
-    $db = DB::connection('autodrive_tip');
-    $db->statement('DROP TABLE IF EXISTS members');
-    $db->statement('
-        CREATE TABLE members (
-            id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-            parentId INT(6) NULL,
-            name VARCHAR(30) NOT NULL,
-            level TINYINT(1) NOT NULL DEFAULT 1,
-            qualification TINYINT(1) NOT NULL DEFAULT 1
-        )
-    ');
-    $db->statement('DROP TABLE IF EXISTS member_transactions');
-    $db->statement('
-        CREATE TABLE member_transactions (
-            id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-            memberId INT(6) NULL,
-            createdAt DATETIME NULL,
-            clientCreatedAt DATETIME NULL,
-            level TINYINT(1) NOT NULL DEFAULT 1,
-            ammount DOUBLE
-        )
-    ');
-    $db->statement('DROP TABLE IF EXISTS levels');
-    $db->statement('
-        CREATE TABLE levels (
-            id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(32) NOT NULL
-        )
-    ');
+        tables();
     } catch (Exception $error) {
         return redirect('/db')->with('error', $error->getMessage());
     }
-    // echo 'created';
     return redirect('/db')->with('status', 'created!');
 })->name('db.create');
 
 Route::get('/db/delete', function () {
-    $dbName = 'autodrive_1';
-    $key = 'Tables_in_' . $dbName;
-    $db = DB::connection('autodrive_tip');
-    $tables = $db->select('show tables');
-    $size = sizeof($tables);
-    // $tableName = [];
-    if($size > 0) {
-        foreach($tables as $table) {
-            // $tableName[] = $table->$key;
-            $db->statement('DROP TABLE IF EXISTS ' . $table->$key);
-        }
+    try {
+        drop_all_table();
+    } catch(Exception $error) {
+        return redirect('/db')->with('error', $error->getMessage());
     }
     return redirect('/db')->with('status', 'deleted!');
 })->name('db.delete');
 
 Route::get('/db/seed', function () {
-    $db = DB::connection('autodrive_tip');
-    $table = $db->table('members');
-    // $table->insert(['name' => 'name_1', 'parentId' => null]);
-    $lst = [
-        [1,null,2],
-        [2,1,1],
-        [3,1,1],
-        [4,1,1],
-        [5,2,1],
-        [6,2,1],
-        [7,3,1],
-        [8,3,1],
-        [9,4,1],
-        [10,6,1],
-        [11,6,1],
-        [12,4,1]
-    ];
-    for($a = 0; $a <= (sizeof($lst) - 1); $a++) {
-        $b = $lst[$a];
-        $table->insert(['id' => $b[0], 'parentId' => $b[1], 'name' => 'name_' . $b[0], 'qualification' => $b[2]]);
+    try {
+        insert_dummy_members();
+    } catch (Exception $error) {
+        return redirect('/db')->with('error', $error->getMessage());
     }
     return redirect('/db')->with('status', 'seeded!');
 })->name('db.seed');
@@ -174,10 +226,10 @@ FROM ancestorPath
 
 $query = 'WITH RECURSIVE cte AS
 (
-  SELECT id, name, parentId FROM members WHERE name="name_11"
-  UNION ALL
-  SELECT c.id, c.name, c.parentId FROM members c JOIN cte
-  ON c.id=cte.parentId
+    SELECT id, name, parentId FROM members WHERE name="name_11"
+    UNION ALL
+    SELECT c.id, c.name, c.parentId FROM members c JOIN cte
+    ON c.id=cte.parentId
 )
 SELECT * FROM cte
 ';
@@ -298,6 +350,13 @@ Route::post('/db/a/add', function () {
 
 })->name('db.a.add');
 
+Route::get('/db/y', function () {
+    // $v = include_once('d.php');
+    // $v = json_decode($v);
+    // echo sizeof($v);
+    insert_dummy_members();
+});
+
 Route::post('/db/l', function () {
     $db = DB::connection('autodrive_tip');
     $input = request()->input();
@@ -362,11 +421,12 @@ Route::post('/db/l', function () {
             WITH RECURSIVE Ancestors AS
             (
                 SELECT * FROM members WHERE id="' . $lastId .  '"
-
                 UNION ALL
-
                 SELECT member.* FROM members member JOIN Ancestors
-                ON member.id = Ancestors.parentId
+                ON member.id=Ancestors.parentId OR
+                member.id = NULL
+            ),
+            test AS (
                 SELECT CONCAT("[id:", id, "]", "[q:",qualification, "]", "[parent:", parentId, "]", "[name:", name, "]") AS tbl FROM Ancestors
             )
             SELECT * FROM test
@@ -388,3 +448,15 @@ Route::post('/db/l', function () {
     }
 
 })->name('db.a.add');
+
+Route::get('/descendants', function () {
+
+})->name('db.descendants');
+
+Route::get('/descendants', function () {
+
+})->name('api.descendants');
+
+Route::get('/ancestors', function () {
+
+})->name('api.ancestors');
