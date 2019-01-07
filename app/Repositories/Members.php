@@ -62,7 +62,7 @@ class Members {
      * $data = collection
      * return void
     */
-public static function batch_insert($data) {
+    public static function batch_insert($data) {
         $db = DB::connection(self::$db_connection);
         $table_name = self::$table_name;
         try {
@@ -78,6 +78,67 @@ public static function batch_insert($data) {
         } catch (Exception $e) {
             throw $e;
         }
+    }
+
+    public static function query_increment_level($id, &$db, $update = false) {
+        $query = '
+            UPDATE members
+            SET level = level + 1
+            WHERE id = ' . $id . '
+        ';
+        return $db->update($query);       
+    }
+
+    public static function query_increment_qualification($id, &$db, $update = false) {
+        $query = '
+            UPDATE members
+            SET qualification = qualification + 1
+            WHERE id = ' . $id . '
+        ';
+        return $db->update($query);       
+    }
+
+    public static function query_get_ancestors($id, &$db) {
+        $query = 'WITH RECURSIVE ancestor AS
+        (
+            SELECT * FROM members WHERE id="' . $id .  '"
+            UNION ALL
+            SELECT member.*
+            FROM members member
+            JOIN ancestor
+            ON member.id=ancestor.parentId
+        ),
+        get AS (
+            SELECT * FROM ancestor
+        )
+        SELECT id FROM get';
+        $ancestors = $db->select($query);
+        return collect($ancestors)->splice(1)->reverse();
+    }
+
+    public static function add_downline($id) {
+        $db = DB::connection(self::$db_connection);
+        $db->transaction(
+            function () use($id, &$db, &$newId) {
+                $newId = $db->table('members')->insertGetId([
+                    'parentId' => $id,
+                    'name'     => 'member name ' . $id
+                ]);
+                /* $updated = $db->select('
+                    SELECT updated
+                    FROM members
+                    where id = ' . $newId . '
+                ');
+                $updated = $updated->updated; */
+                $ancestors = self::query_get_ancestors($id, $db);
+                $ancestors->each(
+                    function ($value) use(&$db) {
+                        self::query_increment_level($value->id, $db);
+                    }
+                );
+            }
+        );
+        return $newId;
     }
 
     public static function get_siblings($id) {

@@ -11,5 +11,18 @@ Artisan::command('installer:table', function () {
 })->describe('Display table list');
 
 Artisan::command('installer:create-table', function () {
-    $this->comment('pusing');
+    $headers = ['Name', 'Awesomeness Level'];
+
+    $data = [
+        [
+            'name' => 'Jim',
+            'awesomeness_level' => 'Meh',
+        ],
+        [
+            'name' => 'Conchita',
+            'awesomeness_level' => 'Fabulous',
+        ],
+    ];
+
+    $this->table($headers, $data);
 })->describe('Display table list');

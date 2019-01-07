@@ -615,7 +615,6 @@ Route::get('/members/{member}/siblings', function () {
 Route::get('/members/{member}/ancestors', function () {
     $id = request()->member;
     $ancestors = Members::get_ancestors($id);
-    $ancestors = $ancestors->toArray();
     return response()->json($ancestors);
 })->name('members.ancestors');
 
@@ -631,6 +630,20 @@ Route::get('/members/{member}', function () {
     $member = Members::get_one($id);
     return response()->json($member);
 })->name('members.detail');
+
+Route::get('/members/{member}/add', function () {
+    $id = request()->member;
+    $member = Members::get_one($id);
+    $ancestors = Members::get_ancestors($id);
+    print_r(json_encode([$ancestors], true));
+    print_r('<a href="' . route('post.members.add', ['member' => $id]) . '">add</a>');
+})->name('get.members.add');
+
+Route::get('/members/{member}/addpost', function () {
+    $id = request()->member;
+    $newId = Members::add_downline($id);
+    return redirect()->route('get.members.add', ['member' => $newId]);
+})->name('post.members.add');
 
 Route::get('/members/search', function () {
     $id = request()->member;
