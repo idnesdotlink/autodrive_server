@@ -4,72 +4,66 @@ use Illuminate\Support\Facades\Request;
 use Illuminate\Support\Facades\Input;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Storage;
 
-/* function get_ancestors() {
-    $db = DB::connection('autodrive_tip');
-    $query = '
-    WITH RECURSIVE ancestorPath AS (
-        SELECT parent.id, parent.parentId, parent.name, 1 depth, CAST(0 AS VARCHAR(200)) AS p
-        FROM members parent
-        WHERE parent.parentId IS NULL
+use App\Events\CreateMember;
+use App\Repositories\Members;
+use App\Repositories\Promos;
+use App\Repositories\Levels;
 
-        UNION ALL
-
-        SELECT Child.id, Child.parentId, Child.name, ANC.depth + 1, CONCAT(ANC.p, ",", Child.parentId)
-        FROM members Child
-        INNER JOIN ancestorPath ANC
-        ON ANC.id = Child.parentId
-        WHERE Child.parentId IS NOT NULL
-    )
-    SELECT *
-    FROM ancestorPath
-    ';
-    $ancestors = $db->select($query);
-    return $ancestors;
-} */
-
-function get_dummy_levels() {
-    $levels_dummy_data = [
-        [1, null],
-        [2,3],
-        [3,4],
-        [4,5],
-        [5,3],
-        [6,4],
-        [7,3],
-        [8,4],
-        [9,4]
-    ];
-    $collection = collect($levels_dummy_data);
-    return $collection;
+function set_dummy_name($item) {
+    // $item['parentId'] = $item['parentId'] ? $item['parentId'] : 0;
+    $item['name'] = 'name_' . $item['id'];
+    return $item;
 }
 
 function get_dummy_members() {
     $members_dummy_data = json_decode(include_once('members.php'), true);
     $collection = collect($members_dummy_data);
+    $collection->transform(function ($item) {
+        return set_dummy_name($item);
+    });
     return $collection;
 }
 
-function insert_dummy_members() {
+function batch_insert_dummy_members() {
     $db = DB::connection('autodrive_tip');
-    $members = $db->table('members');
     $dummy = get_dummy_members();
     $db->transaction(
-        function () use($members, $dummy) {
-            $chunk = $dummy->chunk(1000);
+        function () use($dummy, $db) {
+            $members = $db->table('members');
+            $chunk = $dummy->chunk(500);
             foreach($chunk as $chunked) {
-                $withName = $chunked->map(function($item) {
-                    $item['parentId'] = $item['parentId'] ? $item['parentId'] : 0;
-                    $item['name'] = 'name_' . $item['id'];
-                    return $item;
-                });
-                $members->insert($withName->all());
+                $members->insert($chunked->all());
             }
         }
     );
 }
 
-function insert_dummy_levels($db) {
+function insert_dummy_members() {
+    $db = DB::connection('autodrive_tip');
+    $dummy = get_dummy_members();
+    $chunk = $dummy->chunk(500);
+    foreach($chunk as $chunked) {
+        try {
+            $chunked->transform(
+                function ($item) {
+                    $item['parentId'] = $item['parentId'] ? $item['parentId'] : 0;
+                    $item['name'] = 'name_' . $item['id'];
+                    return $item;
+                }
+            )->each(
+                function ($item, $key) {
+
+                }
+            );
+        } catch (Exception $error) {
+
+        }
+    }
+}
+
+function batch_insert_dummy_levels($db) {
     $levels = $db->table('levels');
     $dummy = get_dummy_levels();
 }
@@ -84,56 +78,96 @@ function tables($drop = false) {
                     id TINYINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                     name VARCHAR(32) NOT NULL,
                     requirement TINYINT NOT NULL,
-                    qualified INT(32) NOT NULL,
-                    unqualified INT(32) NOT NULL,
-                    treshold TINYINT unsigned NOT NULL DEFAULT 0
+                    qualified MEDIUMINT UNSIGNED NOT NULL,
+                    unqualified MEDIUMINT UNSIGNED NOT NULL,
+                    treshold TINYINT unsigned NOT NULL DEFAULT 0,
+                    updated DATETIME NOT NULL DEFAULT NOW()
                 )
             ');
-            $db->statement('DROP TABLE IF EXISTS members');
+            Members::drop_table($db);
+            Members::create_table($db);
+            $db->statement('DROP TABLE IF EXISTS member_revenues');
             $db->statement('
-                CREATE TABLE members (
-                    id MEDIUMINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                    parentId MEDIUMINT NOT NULL DEFAULT 0,
-                    name VARCHAR(128) NOT NULL,
-                    level TINYINT UNSIGNED NOT NULL DEFAULT 1,
-                    qualification TINYINT UNSIGNED NOT NULL DEFAULT 1,
-                    downlineLevelCount VARCHAR(512) NOT NULL DEFAULT "[]",
-                    downlineCount INT(11) UNSIGNED,
-                    levelHistory VARCHAR(256) NOT NULL DEFAULT "[]",
-                    status TINYINT UNSIGNED NOT NULL DEFAULT 1,
-                    created DATETIME NOT NULL DEFAULT NOW(),
-                    CHECK (JSON_VALID(downlineLevelCount)),
-                    CHECK (JSON_VALID(levelHistory))
-                )
-            ');
-            $db->statement('DROP TABLE IF EXISTS member_revenue');
-            $db->statement('
-                CREATE TABLE member_revenue (
-                    memberId INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                CREATE TABLE member_revenues (
+                    memberId INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                     month CHAR(2) NOT NULL,
                     year CHAR(4) NOT NULL,
-                    revenue DOUBLE UNSIGNED DEFAULT 0
+                    revenue DOUBLE UNSIGNED NOT NULL DEFAULT 0
                 )
             ');
-            $db->statement('DROP TABLE IF EXISTS member_purchase');
+            $db->statement('DROP TABLE IF EXISTS level_bonuses');
             $db->statement('
-                CREATE TABLE member_purchase (
-                    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                    memberId MEDIUMINT,
-                    created DATETIME,
-                    amount DOUBLE UNSIGNED DEFAULT 0
-                )
-            ');
-            $db->statement('DROP TABLE IF EXISTS promo');
-            $db->statement('
-                CREATE TABLE promo (
+                CREATE TABLE level_bonuses (
                     id SMALLINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                    created DATETIME,
-                    validUntil DATETIME,
-                    note TEXT,
-                    image 
+                    levelId TINYINT UNSIGNED NOT NULL,
+                    status TINYINT UNSIGNED NOT NULL DEFAULT 0,
+                    type TINYINT UNSIGNED NOT NULL DEFAULT 1,
+                    value DOUBLE UNSIGNED NOT NULL DEFAULT 0
                 )
             ');
+            $db->statement('DROP TABLE IF EXISTS member_purchases');
+            $db->statement('
+                CREATE TABLE member_purchases (
+                    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    memberId MEDIUMINT UNSIGNED NOT NULL,
+                    created DATETIME DEFAULT NOW(),
+                    updated DATETIME NOT NULL DEFAULT NOW(),
+                    amount DOUBLE UNSIGNED DEFAULT 0,
+                    discount DOUBLE UNSIGNED DEFAULT 0,
+                    discounted DOUBLE UNSIGNED DEFAULT 0
+                )
+            ');
+            Promos::drop_table($db);
+            Promos::create_table($db);
+            $db->statement('DROP TABLE IF EXISTS outlets');
+            $db->statement('
+                CREATE TABLE outlets (
+                    id SMALLINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    created DATETIME NOT NULL DEFAULT NOW(),
+                    updated DATETIME NOT NULL DEFAULT NOW(),
+                    validUntil DATETIME NOT NULL DEFAULT \'1000-01-01 00:00:00\',
+                    memberCount MEDIUMINT UNSIGNED NOT NULL DEFAULT 0,
+                    note TEXT,
+                    image BLOB
+                )
+            ');
+            $db->statement('DROP TABLE IF EXISTS products');
+            $db->statement('
+                CREATE TABLE products (
+                    id SMALLINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    created DATETIME NOT NULL DEFAULT NOW(),
+                    updated DATETIME NOT NULL DEFAULT NOW(),
+                    price DOUBLE UNSIGNED DEFAULT 0,
+                    note TEXT,
+                    image BLOB
+                )
+            ');
+            $db->statement('DROP TABLE IF EXISTS agregate');
+            $db->statement('
+                CREATE TABLE agregate (
+                    id SMALLINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    created DATETIME NOT NULL DEFAULT NOW(),
+                    name VARCHAR(128) NOT NULL,
+                    value TEXT,
+                    type SMALLINT UNSIGNED DEFAULT 0
+                )
+            ');
+            $db->statement('DROP TABLE IF EXISTS event_logs');
+            $db->statement('
+                CREATE TABLE event_logs (
+                    id SMALLINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    name VARCHAR(128) NOT NULL,
+                    created DATETIME NOT NULL DEFAULT NOW()
+                )
+            ');
+            /* $db->statement('DROP TABLE IF EXISTS config');
+            $db->statement('
+                CREATE TABLE config (
+                    id SMALLINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    key VARCHAR(32) NOT NULL,
+                    value TEXT
+                )
+            '); */
         }
     );
 }
@@ -172,8 +206,27 @@ function get_ancestors($search, $key = 'id') {
     )
     SELECT * FROM get
 ';
+
+$query2 = '
+WITH RECURSIVE ancestors AS
+(
+    SELECT * FROM members
+    WHERE ' . $key . '="' . $search .  '"
+    UNION
+    SELECT member.*
+    FROM members member,
+    ancestors ancestor
+    WHERE member.id = ancestor.parentId
+),
+get AS (
+    SELECT * FROM ancestors
+)
+SELECT * FROM get
+';
     $ancestors = $db->select($query);
-    return $ancestors;
+    // print_r($ancestors->toSql());
+    // exit();
+    return collect($ancestors)->splice(1)->reverse();
 }
 
 Route::domain('api.trial205.tiptech.network')->group(function () {
@@ -214,12 +267,23 @@ Route::get('/db/delete', function () {
 
 Route::get('/db/seed', function () {
     try {
-        insert_dummy_members();
+        // batch_insert_dummy_members();
+        $data = Members::get_dummy_members();
+        Members::batch_insert($data);
     } catch (Exception $error) {
         return redirect('/db')->with('error', $error->getMessage());
     }
     return redirect('/db')->with('status', 'seeded!');
 })->name('db.seed');
+
+Route::get('/db/seed2', function () {
+    try {
+        insert_dummy_members();
+    } catch (Exception $error) {
+        return redirect('/db')->with('error', $error->getMessage());
+    }
+    return redirect('/db')->with('status', 'seeded!');
+})->name('db.seed2');
 
 Route::get('/db/count', function () {
     $db = DB::connection('autodrive_tip');
@@ -394,7 +458,7 @@ Route::get('/db/y', function () {
     // $v = include_once('d.php');
     // $v = json_decode($v);
     // echo sizeof($v);
-    insert_dummy_members();
+    batch_insert_dummy_members();
 });
 
 Route::post('/db/l', function () {
@@ -489,16 +553,107 @@ Route::post('/db/l', function () {
 
 })->name('db.a.add');
 
-Route::get('/db/descendants/{descendant}', function () {
-    $id = request()->descendant;
-    $ancestors = collect(get_ancestors($id));
-    print_r($ancestors->where('level', 7));
-})->name('db.descendants');
+function x($k, $v, &$db) {
+    $query = 'WITH RECURSIVE ancestor AS
+    (
+        SELECT * FROM members WHERE ' . $k . '="' . $v .  '"
+        UNION ALL
+        SELECT member.*
+        FROM members member
+        JOIN ancestor
+        ON member.id=ancestor.parentId
+    ),
+    get AS (
+        SELECT * FROM ancestor
+    )
+    SELECT * FROM get';
+    // $db->select($query);
+    $ancestors = $db->select($query);
+    return collect($ancestors)->splice(1)->reverse();
+}
 
-Route::get('/db/descendants', function () {
+function y($k, $v, &$db) {
+    $query = '
+        UPDATE members
+        SET qualification = ' . ($k+1) . '
+        WHERE id = ' . $v . '
+    ';
+    // $db->select($query);
+    return $db->update($query);
+}
 
-})->name('api.descendants');
+Route::get('/db/ll', function () {
+    try {
+        $db = DB::connection('autodrive_tip');
+        $k = 'id';
+        $v = 900;
+        $db->transaction(
+            function () use(&$db, &$rv, $k, $v) {
+                $x = x($k, $v, $db)->filter(function ($value) { return $value->level === 6; })->first();
+                y($x->qualification, $x->id, $db);
+                $rv = x($k, $v, $db)->filter(function ($value) { return $value->level === 6; })->first();
+            }
+        );
+        /* $select = $db->select($query); */
+        print_r($rv);
+    } catch(Exception $e) {
+        throw $e;
+    }
+})->name('api.ll');
 
-Route::get('/db/ancestors', function () {
+Route::get('/installer', function () {
+    return 'hello';
+});
 
-})->name('api.ancestors');
+Route::get('/members/{member}/siblings', function () {
+    $id = request()->member;
+    $siblings = Members::get_siblings($id);
+    return response()
+        ->json($siblings);
+})->name('members.siblings');
+
+Route::get('/members/{member}/ancestors', function () {
+    $id = request()->member;
+    $ancestors = Members::get_ancestors($id);
+    $ancestors = $ancestors->toArray();
+    return response()->json($ancestors);
+})->name('members.ancestors');
+
+Route::get('/members/{member}', function () {
+    $id = request()->member;
+    $member = Members::get_one($id);
+    return response()->json($member);
+})->name('members.detail');
+
+Route::get('/members/search', function () {
+    $id = request()->member;
+    $per_page = request()->query('per_page');
+    $page = request()->query('page');
+    $level = request()->query('level');
+    $outletId  =request()->query('outletId');
+    $members = Members::get_all($page, $per_page, $level);
+    return response()->json($members);
+})->name('members.search');
+
+Route::get('/members', function () {
+    $id = request()->member;
+    $per_page = request()->query('per_page');
+    $page = request()->query('page');
+    $level = request()->query('level');
+    $outletId  =request()->query('outletId');
+    $members = Members::get_all($page, $per_page, $level);
+    return response()->json($members);
+})->name('members');
+
+Route::prefix('admin')->middleware([])->group(function () {
+    Route::get('/installer/data.json', function () {
+        try {
+            $file = Members::get_dummy_members();
+        } catch (Exception $e) {
+            throw $e;
+        }
+        $json = $file;
+        return response()
+            ->json($json);
+    });
+});
