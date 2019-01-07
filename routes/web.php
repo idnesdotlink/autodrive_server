@@ -619,6 +619,13 @@ Route::get('/members/{member}/ancestors', function () {
     return response()->json($ancestors);
 })->name('members.ancestors');
 
+Route::get('/members/{member}/children', function () {
+    $id = request()->member;
+    $children = Members::get_children($id);
+    $children = $children->toArray();
+    return response()->json($children);
+})->name('members.children');
+
 Route::get('/members/{member}', function () {
     $id = request()->member;
     $member = Members::get_one($id);
@@ -646,7 +653,7 @@ Route::get('/members', function () {
 })->name('members');
 
 Route::prefix('admin')->middleware([])->group(function () {
-    Route::get('/installer/data.json', function () {
+    Route::get('/data/member.json', function () {
         try {
             $file = Members::get_dummy_members();
         } catch (Exception $e) {

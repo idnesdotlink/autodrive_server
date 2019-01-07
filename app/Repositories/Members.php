@@ -48,7 +48,7 @@ class Members {
     }
 
     public static function get_dummy_members() {
-        $data = Storage::disk('local')->get('dummy/members.json');
+        $data = Storage::disk('local')->get('data/members.json');
         $data = json_decode($data, true);
         $collection = collect($data);
         $collection->transform(function ($item) {
@@ -105,7 +105,8 @@ public static function batch_insert($data) {
         $query = '
             WITH RECURSIVE ancestors AS
             (
-                SELECT * FROM members
+                SELECT *
+                FROM members
                 WHERE ' . $key . '="' . $search .  '"
                 UNION
                 SELECT member.*
@@ -121,6 +122,17 @@ public static function batch_insert($data) {
         ';
         $ancestors = $db->select($query);
         return collect($ancestors);
+    }
+
+    public static function get_children($id) {
+        $db = DB::connection(self::$db_connection);
+        $query = '
+            SELECT *
+            FROM members
+            WHERE parentId = "' . $id . '"
+        ';
+        $children = $db->select($query);
+        return collect($children);
     }
 
     public static function get_all($page, $perPage, $level) {
