@@ -27,7 +27,7 @@ class Members {
                 downlineLevelCount VARCHAR(512) NOT NULL DEFAULT \'[]\',
                 downlineCount MEDIUMINT UNSIGNED NOT NULL DEFAULT 0,
                 levelHistory VARCHAR(256) NOT NULL DEFAULT \'[]\',
-                status TIYINT UNSIGNED NOT NULL DEFAULT 1,
+                status TINYINT UNSIGNED NOT NULL DEFAULT 1,
                 created DATETIME DEFAULT NOW(),
                 updated DATETIME NOT NULL DEFAULT NOW(),
                 validUntil DATETIME NOT NULL DEFAULT \'1000-01-01 00:00:00\',

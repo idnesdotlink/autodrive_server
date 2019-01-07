@@ -84,8 +84,8 @@ function tables($drop = false) {
                     updated DATETIME NOT NULL DEFAULT NOW()
                 )
             ');
-            // Members::drop_table($db);
-            // Members::create_table($db);
+            Members::drop_table($db);
+            Members::create_table($db);
             $db->statement('DROP TABLE IF EXISTS member_revenues');
             $db->statement('
                 CREATE TABLE member_revenues (
