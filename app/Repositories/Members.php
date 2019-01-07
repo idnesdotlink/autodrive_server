@@ -12,7 +12,7 @@ class Members {
 
     public static function create_table(&$db) {
         $db->statement('
-            CREATE TABLE ' . $table_name . ' (
+            CREATE TABLE members (
                 id MEDIUMINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 parentId MEDIUMINT UNSIGNED DEFAULT NULL,
                 outletId SMALLINT UNSIGNED NOT NULL DEFAULT 0,
@@ -31,7 +31,7 @@ class Members {
                 created DATETIME DEFAULT NOW(),
                 updated DATETIME NOT NULL DEFAULT NOW(),
                 validUntil DATETIME NOT NULL DEFAULT \'1000-01-01 00:00:00\',
-                registationFee  DOUBLE UNSIGNED NOT NULL DEFAULT 0,
+                registationFee DOUBLE UNSIGNED NOT NULL DEFAULT 0,
                 CHECK (JSON_VALID(downlineLevelCount)),
                 CHECK (JSON_VALID(levelHistory))
             )
@@ -39,7 +39,7 @@ class Members {
     }
 
     public static function drop_table(&$db) {
-        $db->statement('DROP TABLE IF EXISTS ' . $table);
+        $db->statement('DROP TABLE IF EXISTS members');
     }
 
     public static function set_dummy_name($item) {

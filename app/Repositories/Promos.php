@@ -11,7 +11,7 @@ class Promos {
 
     public static function create_table(&$db) {
         $db->statement('
-            CREATE TABLE ' . $table_name . ' (
+            CREATE TABLE ' . self::$table_name . ' (
                 id SMALLINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 created DATETIME NOT NULL DEFAULT NOW(),
                 updated DATETIME NOT NULL DEFAULT NOW(),
@@ -23,7 +23,7 @@ class Promos {
     }
 
     public static function drop_table(&$db) {
-        $db->statement('DROP TABLE IF EXISTS ' . $table_name);        
+        $db->statement('DROP TABLE IF EXISTS ' . self::$table_name);        
     }
 
     public static function create_promo() {

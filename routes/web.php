@@ -84,8 +84,8 @@ function tables($drop = false) {
                     updated DATETIME NOT NULL DEFAULT NOW()
                 )
             ');
-            Members::drop_table($db);
-            Members::create_table($db);
+            // Members::drop_table($db);
+            // Members::create_table($db);
             $db->statement('DROP TABLE IF EXISTS member_revenues');
             $db->statement('
                 CREATE TABLE member_revenues (
@@ -553,58 +553,6 @@ Route::post('/db/l', function () {
 
 })->name('db.a.add');
 
-function x($k, $v, &$db) {
-    $query = 'WITH RECURSIVE ancestor AS
-    (
-        SELECT * FROM members WHERE ' . $k . '="' . $v .  '"
-        UNION ALL
-        SELECT member.*
-        FROM members member
-        JOIN ancestor
-        ON member.id=ancestor.parentId
-    ),
-    get AS (
-        SELECT * FROM ancestor
-    )
-    SELECT * FROM get';
-    // $db->select($query);
-    $ancestors = $db->select($query);
-    return collect($ancestors)->splice(1)->reverse();
-}
-
-function y($k, $v, &$db) {
-    $query = '
-        UPDATE members
-        SET qualification = ' . ($k+1) . '
-        WHERE id = ' . $v . '
-    ';
-    // $db->select($query);
-    return $db->update($query);
-}
-
-Route::get('/db/ll', function () {
-    try {
-        $db = DB::connection('autodrive_tip');
-        $k = 'id';
-        $v = 900;
-        $db->transaction(
-            function () use(&$db, &$rv, $k, $v) {
-                $x = x($k, $v, $db)->filter(function ($value) { return $value->level === 6; })->first();
-                y($x->qualification, $x->id, $db);
-                $rv = x($k, $v, $db)->filter(function ($value) { return $value->level === 6; })->first();
-            }
-        );
-        /* $select = $db->select($query); */
-        print_r($rv);
-    } catch(Exception $e) {
-        throw $e;
-    }
-})->name('api.ll');
-
-Route::get('/installer', function () {
-    return 'hello';
-});
-
 Route::get('/members/{member}/siblings', function () {
     $id = request()->member;
     $siblings = Members::get_siblings($id);
@@ -634,7 +582,12 @@ Route::get('/members/{member}', function () {
 Route::get('/members/{member}/add', function () {
     $id = request()->member;
     $member = Members::get_one($id);
-    $ancestors = Members::get_ancestors($id);
+    $ancestors = Members::get_ancestors($id)->map(
+        function ($member) {
+            $member = collect($member);
+            return $member->only(['id', 'level']);
+        }
+    );
     print_r(json_encode([$ancestors], true));
     print_r('<a href="' . route('post.members.add', ['member' => $id]) . '">add</a>');
 })->name('get.members.add');
