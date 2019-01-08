@@ -105,3 +105,23 @@ Artisan::command('installer:seed-scenario', function () {
     $this->comment('Processing Installer Finish');
 
 })->describe('Display table list');
+
+Artisan::command('database:members {id} {--type=}', function ($id, $type) {
+    switch ($type) {
+        case 'ancestors':
+            $this->line('ancestors');
+            break;
+        case 'psg':
+            $this->line('psg');
+            break;
+    }
+    $member = Members::get_one($id);
+    if ($member === null) {
+        $this->comment('no data !');
+    } else {
+        $member = collect($member)->only(['id', 'parentId', 'level', 'qualification']);
+        $header = $member->keys();
+        $data = $member->values()->toArray();
+        $this->table($header, [$data]);
+    }
+})->describe('Display Members Database By Id');

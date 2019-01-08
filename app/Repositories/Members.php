@@ -280,7 +280,7 @@ class Members {
         }
     }
 
-    public function add($members) {
+    public static function add($members) {
         $db = DB::connection(self::$db_connection);
         $db->transaction(
             function () use(&$db) {
@@ -289,17 +289,17 @@ class Members {
         );
     }
 
-    public function update() {
+    public static function update() {
 
     }
 
-    public function getByProperty($property, $propertyKey = 'id') {
+    public static function getByProperty($property, $propertyKey = 'id') {
 
     }
 
-    public function getByName($name) {}
+    public static function getByName($name) {}
 
-    public function getById($id) {
+    public static function getById($id) {
         return $this->getByProperty($id, 'id')->first();
     }
 }
