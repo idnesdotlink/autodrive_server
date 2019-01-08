@@ -11,120 +11,6 @@ use App\Repositories\Members;
 use App\Repositories\Promos;
 use App\Repositories\Levels;
 
-function set_dummy_name($item) {
-    // $item['parentId'] = $item['parentId'] ? $item['parentId'] : 0;
-    $item['name'] = 'name_' . $item['id'];
-    return $item;
-}
-
-function get_dummy_members() {
-    $members_dummy_data = json_decode(include_once('members.php'), true);
-    $collection = collect($members_dummy_data);
-    $collection->transform(function ($item) {
-        return set_dummy_name($item);
-    });
-    return $collection;
-}
-
-function batch_insert_dummy_members() {
-    $db = DB::connection('autodrive_tip');
-    $dummy = get_dummy_members();
-    $db->transaction(
-        function () use($dummy, $db) {
-            $members = $db->table('members');
-            $chunk = $dummy->chunk(500);
-            foreach($chunk as $chunked) {
-                $members->insert($chunked->all());
-            }
-        }
-    );
-}
-
-function insert_dummy_members() {
-    $db = DB::connection('autodrive_tip');
-    $dummy = get_dummy_members();
-    $chunk = $dummy->chunk(500);
-    foreach($chunk as $chunked) {
-        try {
-            $chunked->transform(
-                function ($item) {
-                    $item['parentId'] = $item['parentId'] ? $item['parentId'] : 0;
-                    $item['name'] = 'name_' . $item['id'];
-                    return $item;
-                }
-            )->each(
-                function ($item, $key) {
-
-                }
-            );
-        } catch (Exception $error) {
-
-        }
-    }
-}
-
-function batch_insert_dummy_levels($db) {
-    $levels = $db->table('levels');
-    $dummy = get_dummy_levels();
-}
-
-function drop_all_table() {
-    $dbName = 'autodrive_1';
-    $key = 'Tables_in_' . $dbName;
-    $db = DB::connection('autodrive_tip');
-    $db->transaction(
-        function () use($db, $key) {
-            $tables = $db->select('show tables');
-            $size = sizeof($tables);
-            if($size > 0) {
-                foreach($tables as $table) {
-                    $db->statement('DROP TABLE IF EXISTS ' . $table->$key);
-                }
-            }
-        }
-    );
-}
-
-function get_ancestors($search, $key = 'id') {
-    $db = DB::connection('autodrive_tip');
-    $query = '
-    WITH RECURSIVE ancestor AS
-    (
-        SELECT * FROM members WHERE ' . $key . '="' . $search .  '"
-        UNION ALL
-        SELECT member.*
-        FROM members member
-        JOIN ancestor
-        ON member.id=ancestor.parentId
-    ),
-    get AS (
-        SELECT * FROM ancestor
-    )
-    SELECT * FROM get
-';
-
-$query2 = '
-WITH RECURSIVE ancestors AS
-(
-    SELECT * FROM members
-    WHERE ' . $key . '="' . $search .  '"
-    UNION
-    SELECT member.*
-    FROM members member,
-    ancestors ancestor
-    WHERE member.id = ancestor.parentId
-),
-get AS (
-    SELECT * FROM ancestors
-)
-SELECT * FROM get
-';
-    $ancestors = $db->select($query);
-    // print_r($ancestors->toSql());
-    // exit();
-    return collect($ancestors)->splice(1)->reverse();
-}
-
 Route::domain('api.trial205.tiptech.network')->group(function () {
     Route::get('/', function () {
         return view('api.welcome');
@@ -151,48 +37,6 @@ Route::get('/db/delete', function () {
     }
     return redirect()->route('admin.data')->with('status', 'deleted!');
 })->name('db.delete');
-
-Route::get('/db/seed', function () {
-    try {
-        // batch_insert_dummy_members();
-        $data = Members::get_dummy_members();
-        Members::batch_insert($data);
-    } catch (Exception $error) {
-        return redirect()->route('admin.data')->with('error', $error->getMessage());
-    }
-    return redirect()->route('admin.data')->with('status', 'seeded!');
-})->name('db.seed');
-
-Route::get('/db/seed2', function () {
-    try {
-        insert_dummy_members();
-    } catch (Exception $error) {
-        return redirect()->route('admin.data')->with('error', $error->getMessage());
-    }
-    return redirect()->route('admin.data')->with('status', 'seeded!');
-})->name('db.seed2');
-
-Route::get('/db/count', function () {
-    $db = DB::connection('autodrive_tip');
-    $tables = $db->select('show tables');
-    $tables = sizeof($tables);
-    return redirect()->route('admin.data')->with('status', 'count: ' . $tables);
-})->name('db.count');
-
-Route::get('/db/list', function () {
-    $dbName = 'autodrive_1';
-    $key = 'Tables_in_' . $dbName;
-    $db = DB::connection('autodrive_tip');
-    $tables = $db->select('show tables');
-    $size = sizeof($tables);
-    $tableName = [];
-    if($size > 0) {
-        foreach($tables as $table) {
-            $tableName[] = $table->$key;
-        }
-    }
-    return redirect()->route('admin.data')->with('tables', $tableName);
-})->name('db.list');
 
 Route::get('/db/hierarchy', function () {
     $db = DB::connection('autodrive_tip');
@@ -249,19 +93,6 @@ $query2 = 'SELECT * FROM members';
     }
 
 })->name('db.hierarchy');
-
-Route::get('/db/sessions', function () {
-    Artisan::call('session:table');
-})->name('db.sessions');
-
-Route::get('/db/migrate', function () {
-    try {
-        Artisan::call('migrate');
-    } catch (Exception $error) {
-        return redirect()->route('admin.data')->with('error', $error->getMessage());
-    }
-    return redirect()->route('admin.data')->with('status', 'migrated');
-})->name('db.migrate');
 
 Route::get('/db/add', function () {
     return view('main.add');
@@ -534,5 +365,4 @@ Route::prefix('admin')->middleware([])->group(function () {
     Route::get('/data/desc/', function () {
         print_r(Members::get_descendants(300));
     });
-
 });

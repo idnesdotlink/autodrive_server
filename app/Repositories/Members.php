@@ -139,12 +139,12 @@ class Members {
         get AS (
             SELECT * FROM ancestor
         )
-        SELECT id, level FROM get';
+        SELECT id, level, qualification FROM get';
         $ancestors = $db->select($query);
         return collect($ancestors)->splice(1)->reverse();
     }
 
-    public static function add_downline($id) {
+    public static function add_downline($id = null) {
         $db = DB::connection(self::$db_connection);
         $db->transaction(
             function () use($id, &$db, &$newId) {
@@ -152,14 +152,16 @@ class Members {
                     'parentId' => $id,
                     'name'     => 'member name ' . $id
                 ]);
+                // if ($id === null) return;
                 $ancestors = self::query_get_ancestors($id, $db);
+                if ($ancestors->count() < 1) return;
                 $ancestors->each(
                     function ($value) use(&$db) {
-                        $nextLevel = $value->level + 1;
-                        $required = self::query_count_level($value->id, $value->level + 1, $db);
-                        if ($required >= Levels::$levels[$value->level]['requirement']) {
+                        // $nextLevel = $value->level + 1;
+                        // $required = self::query_count_level($value->id, $value->level + 1, $db);
+                        // if ($required >= Levels::$levels[$value->level]['requirement']) {
                             self::query_increment_level($value->id, $db);
-                        }
+                        // }
                     }
                 );
             }
@@ -301,5 +303,10 @@ class Members {
 
     public static function getById($id) {
         return $this->getByProperty($id, 'id')->first();
+    }
+
+    public static function create_dummy_one($parentId) {
+        $newId = self::add_downline($parentId);
+        return $newId;
     }
 }

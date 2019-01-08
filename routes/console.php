@@ -3,6 +3,7 @@
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Artisan;
 use App\Repositories\Members;
 use App\Repositories\Levels;
 use App\Repositories\Installer;
@@ -73,15 +74,6 @@ Artisan::command('installer:table-name', function () {
     $this->table(['name'], $tables);
 })->describe('Display table list');
 
-Artisan::command('installer:table', function () {
-    Installer::tables();
-})->describe('Display table list');
-
-Artisan::command('installer:seed', function () {
-    $data = Members::get_dummy_members();
-    Members::batch_insert($data);
-})->describe('Display table list');
-
 Artisan::command('installer:drop', function () {
     Installer::drop_all_table();
 })->describe('Display table list');
@@ -106,22 +98,72 @@ Artisan::command('installer:seed-scenario', function () {
 
 })->describe('Display table list');
 
-Artisan::command('database:members {id} {--type=}', function ($id, $type) {
+Artisan::command('data:members {id?} {--type=?}', function ($id = null, $type = null) {
     switch ($type) {
-        case 'ancestors':
+        case 'd':
+            $member = Members::get_one($id);
+            if ($member === null) {
+                $this->comment('no data !');
+            } else {
+                $member = collect($member)->only(['id', 'parentId', 'level', 'qualification']);
+                $header = $member->keys();
+                $data = $member->values()->toArray();
+                $this->table($header, [$data]);
+            }
+            break;
+        case 'a':
             $this->line('ancestors');
             break;
-        case 'psg':
-            $this->line('psg');
+        case 'd':
+            $this->line('descendants');
+            break;
+        case 's':
+            $this->line('siblings');
+            break;
+        case 'cr':
+            // $this->line('create dummy');
+            try {
+                $db = DB::connection(Members::$db_connection);
+                $parentId = $id;
+                $id = Members::create_dummy_one($parentId);
+                $ancestors = Members::query_get_ancestors($id, $db);
+                $this->line('ancestors: ' . $ancestors->count());
+            } catch (Exception $error) {
+                $this->line($error->getMessage());
+            }
+        default:
+            // $this->line('please insert --type=[type]');
             break;
     }
-    $member = Members::get_one($id);
-    if ($member === null) {
-        $this->comment('no data !');
-    } else {
-        $member = collect($member)->only(['id', 'parentId', 'level', 'qualification']);
-        $header = $member->keys();
-        $data = $member->values()->toArray();
-        $this->table($header, [$data]);
-    }
 })->describe('Display Members Database By Id');
+
+Artisan::command('data:table {--action=?}', function ($action) {
+    switch ($action) {
+        case 'create':
+            try {
+                Artisan::call('migrate');
+                Installer::tables();
+            } catch (Exception $error) {
+
+            }
+            break;
+        case 'drop':
+            try {
+                Installer::drop_all_table();
+            } catch (Exception $error) {
+
+            }
+            break;
+        case 'seed':
+            try {
+                $data = Members::get_dummy_members();
+                Members::batch_insert($data);
+            } catch (Exception $error) {
+
+            }
+            break;
+        default:
+        break;
+    }
+    $this->line('Action Success');
+})->describe('Install Tables');
