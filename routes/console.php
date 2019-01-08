@@ -1,6 +1,11 @@
 <?php
 
 use Illuminate\Foundation\Inspiring;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use App\Repositories\Members;
+use App\Repositories\Levels;
+use App\Repositories\Installer;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -61,4 +66,42 @@ Artisan::command('installer:anticipate', function () {
     );
 
     $this->info("Source chosen is $source");
+})->describe('Display table list');
+
+Artisan::command('installer:table-name', function () {
+    $tables = Installer::show_table();
+    $this->table(['name'], $tables);
+})->describe('Display table list');
+
+Artisan::command('installer:table', function () {
+    Installer::tables();
+})->describe('Display table list');
+
+Artisan::command('installer:seed', function () {
+    $data = Members::get_dummy_members();
+    Members::batch_insert($data);
+})->describe('Display table list');
+
+Artisan::command('installer:drop', function () {
+    Installer::drop_all_table();
+})->describe('Display table list');
+
+Artisan::command('installer:seed-scenario', function () {
+    $this->comment('Processing Installer');
+    $dummies = Members::get_dummy_members();
+    $part = 1000;
+    $part = $dummies->take($part);
+    $total = $part->count();
+
+    $this->output->progressStart($total);
+
+    for ($i = 0; $i < $total; $i++) {
+        usleep(10000);
+
+        $this->output->progressAdvance();
+    }
+
+    $this->output->progressFinish();
+    $this->comment('Processing Installer Finish');
+
 })->describe('Display table list');

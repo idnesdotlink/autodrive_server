@@ -81,16 +81,13 @@
                     Autodrive
                 </div>
                 <div>
-                    <a href="{{ route('db.delete') }}">Delete</a>
+                    {{-- <a href="{{ route('db.delete') }}">Delete</a>
                     <a href="{{ route('db.create') }}">Create</a>
                     <a href="{{ route('db.count') }}">Count</a>
                     <a href="{{ route('db.sessions') }}">Sessions</a>
                     <a href="{{ route('db.migrate') }}">Migrate</a>
                     <a href="{{ route('db.list') }}">List</a>
-                    <a href="{{ route('db.seed') }}">Seed</a>
-                    <a href="{{ route('db.hierarchy') }}">Hierarchy</a>
-                    <a href="{{ route('db.api') }}">API</a>
-                    <a href="{{ route('db.add') }}">Add</a>
+                    <a href="{{ route('admin.data.seed') }}">Seed</a> --}}
                 </div>
                 @if (session('status'))
                 <div class="alert alert-success">

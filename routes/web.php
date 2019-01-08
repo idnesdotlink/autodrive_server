@@ -68,110 +68,6 @@ function batch_insert_dummy_levels($db) {
     $dummy = get_dummy_levels();
 }
 
-function tables($drop = false) {
-    $db = DB::connection('autodrive_tip');
-    $db->transaction(
-        function () use($db) {
-            $db->statement('DROP TABLE IF EXISTS levels');
-            $db->statement('
-                CREATE TABLE levels (
-                    id TINYINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                    name VARCHAR(32) NOT NULL,
-                    requirement TINYINT NOT NULL,
-                    qualified MEDIUMINT UNSIGNED NOT NULL,
-                    unqualified MEDIUMINT UNSIGNED NOT NULL,
-                    treshold TINYINT unsigned NOT NULL DEFAULT 0,
-                    updated DATETIME NOT NULL DEFAULT NOW()
-                )
-            ');
-            Members::drop_table($db);
-            Members::create_table($db);
-            $db->statement('DROP TABLE IF EXISTS member_revenues');
-            $db->statement('
-                CREATE TABLE member_revenues (
-                    memberId INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                    month CHAR(2) NOT NULL,
-                    year CHAR(4) NOT NULL,
-                    revenue DOUBLE UNSIGNED NOT NULL DEFAULT 0
-                )
-            ');
-            $db->statement('DROP TABLE IF EXISTS level_bonuses');
-            $db->statement('
-                CREATE TABLE level_bonuses (
-                    id SMALLINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                    levelId TINYINT UNSIGNED NOT NULL,
-                    status TINYINT UNSIGNED NOT NULL DEFAULT 0,
-                    type TINYINT UNSIGNED NOT NULL DEFAULT 1,
-                    value DOUBLE UNSIGNED NOT NULL DEFAULT 0
-                )
-            ');
-            $db->statement('DROP TABLE IF EXISTS member_purchases');
-            $db->statement('
-                CREATE TABLE member_purchases (
-                    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                    memberId MEDIUMINT UNSIGNED NOT NULL,
-                    created DATETIME DEFAULT NOW(),
-                    updated DATETIME NOT NULL DEFAULT NOW(),
-                    amount DOUBLE UNSIGNED DEFAULT 0,
-                    discount DOUBLE UNSIGNED DEFAULT 0,
-                    discounted DOUBLE UNSIGNED DEFAULT 0
-                )
-            ');
-            Promos::drop_table($db);
-            Promos::create_table($db);
-            $db->statement('DROP TABLE IF EXISTS outlets');
-            $db->statement('
-                CREATE TABLE outlets (
-                    id SMALLINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                    created DATETIME NOT NULL DEFAULT NOW(),
-                    updated DATETIME NOT NULL DEFAULT NOW(),
-                    validUntil DATETIME NOT NULL DEFAULT \'1000-01-01 00:00:00\',
-                    memberCount MEDIUMINT UNSIGNED NOT NULL DEFAULT 0,
-                    note TEXT,
-                    image BLOB
-                )
-            ');
-            $db->statement('DROP TABLE IF EXISTS products');
-            $db->statement('
-                CREATE TABLE products (
-                    id SMALLINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                    created DATETIME NOT NULL DEFAULT NOW(),
-                    updated DATETIME NOT NULL DEFAULT NOW(),
-                    price DOUBLE UNSIGNED DEFAULT 0,
-                    note TEXT,
-                    image BLOB
-                )
-            ');
-            $db->statement('DROP TABLE IF EXISTS agregate');
-            $db->statement('
-                CREATE TABLE agregate (
-                    id SMALLINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                    created DATETIME NOT NULL DEFAULT NOW(),
-                    name VARCHAR(128) NOT NULL,
-                    value TEXT,
-                    type SMALLINT UNSIGNED DEFAULT 0
-                )
-            ');
-            $db->statement('DROP TABLE IF EXISTS event_logs');
-            $db->statement('
-                CREATE TABLE event_logs (
-                    id SMALLINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                    name VARCHAR(128) NOT NULL,
-                    created DATETIME NOT NULL DEFAULT NOW()
-                )
-            ');
-            /* $db->statement('DROP TABLE IF EXISTS config');
-            $db->statement('
-                CREATE TABLE config (
-                    id SMALLINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                    key VARCHAR(32) NOT NULL,
-                    value TEXT
-                )
-            '); */
-        }
-    );
-}
-
 function drop_all_table() {
     $dbName = 'autodrive_1';
     $key = 'Tables_in_' . $dbName;
@@ -247,22 +143,13 @@ Route::get('/db', function () {
     return view('main.db');
 })->name('db');
 
-Route::get('/db/create', function () {
-    try {
-        tables();
-    } catch (Exception $error) {
-        return redirect('/db')->with('error', $error->getMessage());
-    }
-    return redirect('/db')->with('status', 'created!');
-})->name('db.create');
-
 Route::get('/db/delete', function () {
     try {
         drop_all_table();
     } catch(Exception $error) {
-        return redirect('/db')->with('error', $error->getMessage());
+        return redirect()->route('admin.data')->with('error', $error->getMessage());
     }
-    return redirect('/db')->with('status', 'deleted!');
+    return redirect()->route('admin.data')->with('status', 'deleted!');
 })->name('db.delete');
 
 Route::get('/db/seed', function () {
@@ -271,25 +158,25 @@ Route::get('/db/seed', function () {
         $data = Members::get_dummy_members();
         Members::batch_insert($data);
     } catch (Exception $error) {
-        return redirect('/db')->with('error', $error->getMessage());
+        return redirect()->route('admin.data')->with('error', $error->getMessage());
     }
-    return redirect('/db')->with('status', 'seeded!');
+    return redirect()->route('admin.data')->with('status', 'seeded!');
 })->name('db.seed');
 
 Route::get('/db/seed2', function () {
     try {
         insert_dummy_members();
     } catch (Exception $error) {
-        return redirect('/db')->with('error', $error->getMessage());
+        return redirect()->route('admin.data')->with('error', $error->getMessage());
     }
-    return redirect('/db')->with('status', 'seeded!');
+    return redirect()->route('admin.data')->with('status', 'seeded!');
 })->name('db.seed2');
 
 Route::get('/db/count', function () {
     $db = DB::connection('autodrive_tip');
     $tables = $db->select('show tables');
     $tables = sizeof($tables);
-    return redirect('/db')->with('status', 'count: ' . $tables);
+    return redirect()->route('admin.data')->with('status', 'count: ' . $tables);
 })->name('db.count');
 
 Route::get('/db/list', function () {
@@ -304,7 +191,7 @@ Route::get('/db/list', function () {
             $tableName[] = $table->$key;
         }
     }
-    return redirect('/db')->with('tables', $tableName);
+    return redirect()->route('admin.data')->with('tables', $tableName);
 })->name('db.list');
 
 Route::get('/db/hierarchy', function () {
@@ -371,9 +258,9 @@ Route::get('/db/migrate', function () {
     try {
         Artisan::call('migrate');
     } catch (Exception $error) {
-        return redirect('/db')->with('error', $error->getMessage());
+        return redirect()->route('admin.data')->with('error', $error->getMessage());
     }
-    return redirect('/db')->with('status', 'migrated');
+    return redirect()->route('admin.data')->with('status', 'migrated');
 })->name('db.migrate');
 
 Route::get('/db/add', function () {
@@ -619,6 +506,11 @@ Route::get('/members', function () {
 })->name('members');
 
 Route::prefix('admin')->middleware([])->group(function () {
+
+    Route::get('/data', function () {
+        return view('main.db');
+    })->name('admin.data');
+
     Route::get('/data/member.json', function () {
         try {
             $file = Members::get_dummy_members();
@@ -628,5 +520,19 @@ Route::prefix('admin')->middleware([])->group(function () {
         $json = $file;
         return response()
             ->json($json);
+    })->name('admin.data.json');
+
+    Route::get('/data/create', function () {
+        try {
+            tables();
+        } catch (Exception $error) {
+            return redirect()->route('admin.data')->with('error', $error->getMessage());
+        }
+        return redirect()->route('admin.data')->with('status', 'created!');
+    })->name('admin.data.create');
+
+    Route::get('/data/desc/', function () {
+        print_r(Members::get_descendants(300));
     });
+
 });

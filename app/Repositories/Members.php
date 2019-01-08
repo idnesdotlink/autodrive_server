@@ -66,7 +66,7 @@ class Members {
         $db = DB::connection(self::$db_connection);
         $table_name = self::$table_name;
         try {
-        $db->transaction(
+            $db->transaction(
                 function () use($data, $db, $table_name) {
                     $members = $db->table($table_name);
                     $chunk = $data->chunk(500);
@@ -86,7 +86,7 @@ class Members {
             SET level = level + 1
             WHERE id = ' . $id . '
         ';
-        return $db->update($query);       
+        return $db->update($query);
     }
 
     public static function query_increment_qualification($id, &$db, $update = false) {
@@ -95,7 +95,35 @@ class Members {
             SET qualification = qualification + 1
             WHERE id = ' . $id . '
         ';
-        return $db->update($query);       
+        return $db->update($query);
+    }
+
+    public static function query_count_level($id, $level, &$db) {
+        $query = '
+            WITH RECURSIVE descendants AS
+            (
+                SELECT id, level, qualification
+                FROM members
+                WHERE id="' . $id .  '"
+
+                UNION ALL
+
+                SELECT member.id, member.level, member.qualification
+                FROM members member,
+                descendants descendant
+                WHERE member.parentId=descendant.id AND
+                member.level > ' . $level . '
+            ),
+            get AS (
+                SELECT *
+                FROM descendants
+                WHERE id != ' . $id . '
+            )
+            SELECT COUNT(id) as LevelCount
+            FROM get
+        ';
+        $ancestors = $db->select($query);
+        return collect($ancestors)->first()->LevelCount;
     }
 
     public static function query_get_ancestors($id, &$db) {
@@ -111,7 +139,7 @@ class Members {
         get AS (
             SELECT * FROM ancestor
         )
-        SELECT id FROM get';
+        SELECT id, level FROM get';
         $ancestors = $db->select($query);
         return collect($ancestors)->splice(1)->reverse();
     }
@@ -124,21 +152,26 @@ class Members {
                     'parentId' => $id,
                     'name'     => 'member name ' . $id
                 ]);
-                /* $updated = $db->select('
-                    SELECT updated
-                    FROM members
-                    where id = ' . $newId . '
-                ');
-                $updated = $updated->updated; */
                 $ancestors = self::query_get_ancestors($id, $db);
                 $ancestors->each(
                     function ($value) use(&$db) {
-                        self::query_increment_level($value->id, $db);
+                        $nextLevel = $value->level + 1;
+                        $required = self::query_count_level($value->id, $value->level + 1, $db);
+                        if ($required >= Levels::$levels[$value->level]['requirement']) {
+                            self::query_increment_level($value->id, $db);
+                        }
                     }
                 );
             }
         );
         return $newId;
+    }
+
+    public static function get_descendants($id) {
+        /* $db = DB::connection(self::$db_connection);
+        // Levels::$levels[$value->level];
+        $descendant = self::query_count_level($id, 12, $db);
+        return $descendant; */
     }
 
     public static function get_siblings($id) {
