@@ -81,18 +81,25 @@ Artisan::command('installer:drop', function () {
 Artisan::command('installer:seed-scenario', function () {
     $this->comment('Processing Installer');
     $dummies = Members::get_dummy_members();
-    $part = 1000;
-    $part = $dummies->take($part);
-    $total = $part->count();
-
-    $this->output->progressStart($total);
-
-    for ($i = 0; $i < $total; $i++) {
-        usleep(10000);
-
+    // $dummies = $dummies->take(12);
+    // print_r($dummies->first());
+    // exit();
+    $groupSize = 500;
+    $chunked = $dummies->chunk($groupSize);
+    $chunkCount = 1;
+    $this->output->progressStart($chunked->count());
+    foreach($chunked as $chunk) {
+        $chunk->each(function ($data) {
+            $insertData = [
+                'name'     => $data['name'],
+                'parentId' => $data['parentId'],
+                'level'    => $data['level']
+            ];
+            Members::add($data['parentId'], $insertData);
+        });
         $this->output->progressAdvance();
+        $chunkCount++;
     }
-
     $this->output->progressFinish();
     $this->comment('Processing Installer Finish');
 
