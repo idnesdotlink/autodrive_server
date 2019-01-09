@@ -98,8 +98,8 @@ Artisan::command('installer:seed-scenario', function () {
 
 })->describe('Display table list');
 
-Artisan::command('data:members {id?} {--type=?}', function ($id = null, $type = null) {
-    switch ($type) {
+Artisan::command('data:members {id?} {--action=?}', function ($id = null, $action = null) {
+    switch ($action) {
         case 'd':
             $member = Members::get_one($id);
             if ($member === null) {
@@ -120,16 +120,22 @@ Artisan::command('data:members {id?} {--type=?}', function ($id = null, $type = 
         case 's':
             $this->line('siblings');
             break;
-        case 'cr':
+        case 'add':
             // $this->line('create dummy');
             try {
                 $db = DB::connection(Members::$db_connection);
                 $parentId = $id;
-                $id = Members::create_dummy_one($parentId);
+                $dummy_data = [
+                    'parentId' => $parentId,
+                    'name'     => 'member name '
+                ];
+                $id = Members::add($parentId, $dummy_data);
                 $ancestors = Members::query_get_ancestors($id, $db);
+                $this->line('new member with id: ' . $id);
                 $this->line('ancestors: ' . $ancestors->count());
             } catch (Exception $error) {
                 $this->line($error->getMessage());
+                // print_r($error);
             }
         default:
             // $this->line('please insert --type=[type]');
@@ -167,3 +173,7 @@ Artisan::command('data:table {--action=?}', function ($action) {
     }
     $this->line('Action Success');
 })->describe('Install Tables');
+
+Artisan::command('psg', function () {
+    print_r(Members::get_one(1)->id);
+});

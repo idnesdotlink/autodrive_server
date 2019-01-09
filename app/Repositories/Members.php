@@ -1,8 +1,8 @@
 <?php
 
 namespace App\Repositories;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\{DB, Storage};
+use Illuminate\Support\Collection;
 use App\Repositories\Levels;
 
 class Members {
@@ -38,16 +38,33 @@ class Members {
         ');
     }
 
-    public static function drop_table(&$db) {
+    /**
+     *
+     *
+     * @param [type] $db
+     * @return void
+     */
+    public static function drop_table(&$db): void {
         $db->statement('DROP TABLE IF EXISTS members');
     }
 
-    public static function set_dummy_name($item) {
+    /**
+     *
+     *
+     * @param Array $item
+     * @return Array
+     */
+    public static function set_dummy_name(Array $item): Array {
         $item['name'] = 'name_' . $item['id'];
         return $item;
     }
 
-    public static function get_dummy_members() {
+    /**
+     * Undocumented function
+     *
+     * @return Collection
+     */
+    public static function get_dummy_members(): Collection {
         $data = Storage::disk('local')->get('data/members.json');
         $data = json_decode($data, true);
         $collection = collect($data);
@@ -62,7 +79,7 @@ class Members {
      * $data = collection
      * return void
     */
-    public static function batch_insert($data) {
+    public static function batch_insert($data): void {
         $db = DB::connection(self::$db_connection);
         $table_name = self::$table_name;
         try {
@@ -80,7 +97,14 @@ class Members {
         }
     }
 
-    public static function query_increment_level($id, &$db, $update = false) {
+    /**
+     * Undocumented function
+     *
+     * @param integer $id
+     * @param [type] $db
+     * @return integer
+     */
+    public static function query_increment_level(int $id, &$db): int {
         $query = '
             UPDATE members
             SET level = level + 1
@@ -89,7 +113,14 @@ class Members {
         return $db->update($query);
     }
 
-    public static function query_increment_qualification($id, &$db, $update = false) {
+    /**
+     * Undocumented function
+     *
+     * @param integer $id
+     * @param [type] $db
+     * @return integer
+     */
+    public static function query_increment_qualification(int $id, &$db): int {
         $query = '
             UPDATE members
             SET qualification = qualification + 1
@@ -98,85 +129,151 @@ class Members {
         return $db->update($query);
     }
 
-    public static function query_count_level($id, $level, &$db) {
+    /**
+     * Undocumented function
+     *
+     * @param integer $id
+     * @param integer $level
+     * @param [type] $db
+     * @return integer
+     */
+    public static function query_count_level(int $id, int $level, &$db): int {
         $query = '
             WITH RECURSIVE descendants AS
             (
-                SELECT id, level, qualification
+                SELECT id, parentId, level, qualification
                 FROM members
                 WHERE id="' . $id .  '"
 
                 UNION ALL
 
-                SELECT member.id, member.level, member.qualification
+                SELECT member.id, member.parentId, member.level, member.qualification
                 FROM members member,
                 descendants descendant
                 WHERE member.parentId=descendant.id AND
-                member.level > ' . $level . '
+                member.level = ' . $level . '
             ),
             get AS (
-                SELECT *
+                SELECT COUNT(id) AS counter
                 FROM descendants
                 WHERE id != ' . $id . '
             )
-            SELECT COUNT(id) as LevelCount
+            SELECT *
             FROM get
         ';
         $ancestors = $db->select($query);
-        return collect($ancestors)->first()->LevelCount;
+        return collect($ancestors)->first()->counter;
     }
 
-    public static function query_get_ancestors($id, &$db) {
-        $query = 'WITH RECURSIVE ancestor AS
-        (
-            SELECT * FROM members WHERE id="' . $id .  '"
-            UNION ALL
-            SELECT member.*
-            FROM members member
-            JOIN ancestor
-            ON member.id=ancestor.parentId
-        ),
-        get AS (
-            SELECT * FROM ancestor
-        )
-        SELECT id, level, qualification FROM get';
-        $ancestors = $db->select($query);
-        return collect($ancestors)->splice(1)->reverse();
-    }
-
-    public static function add_downline($id = null) {
+    /**
+     * add new member
+     * accepting array of member data
+     * return new member id
+     *
+     * @param integer $parentId
+     * @param Array $data
+     * @return integer
+     */
+    public static function add(int $parentId = null, Array $data = null): int {
         $db = DB::connection(self::$db_connection);
         $db->transaction(
-            function () use($id, &$db, &$newId) {
-                $newId = $db->table('members')->insertGetId([
-                    'parentId' => $id,
-                    'name'     => 'member name ' . $id
-                ]);
-                // if ($id === null) return;
-                $ancestors = self::query_get_ancestors($id, $db);
-                if ($ancestors->count() < 1) return;
+            function () use($parentId, &$db, &$newId, $data) {
+                $newId = $db->table('members')->insertGetId($data);
+                $ancestors = self::query_get_ancestors($newId, $db);
+
+                if ($parentId === null || $ancestors->isEmpty()) return;
                 $ancestors->each(
                     function ($value) use(&$db) {
-                        // $nextLevel = $value->level + 1;
-                        // $required = self::query_count_level($value->id, $value->level + 1, $db);
-                        // if ($required >= Levels::$levels[$value->level]['requirement']) {
-                            self::query_increment_level($value->id, $db);
-                        // }
+                        $id = $value->id;
+                        $data = self::get_one($id);
+                        $nextLevel = $data->level + 1;
+                        $req_count = self::query_count_level($data->id, $data->level, $db);
+                        $req = Levels::$levels[$nextLevel]['requirement'];
+                        if ($req_count >= $req) {
+                            self::query_increment_qualification($data->id, $db);
+                        }
                     }
                 );
-            }
+            },
+            5
         );
         return $newId;
     }
 
-    public static function get_descendants($id) {
-        /* $db = DB::connection(self::$db_connection);
-        // Levels::$levels[$value->level];
-        $descendant = self::query_count_level($id, 12, $db);
-        return $descendant; */
+    /**
+     * get collections id of descendants
+     *
+     * @param integer $id
+     * @return Collection
+     */
+    public static function get_descendants(int $id): Collection {
+        $query = '
+            WITH RECURSIVE descendants AS
+            (
+                SELECT id, parentId
+                FROM members
+                WHERE id="' . $id .  '"
+
+                UNION ALL
+
+                SELECT member.id, member.parentId
+                FROM members member,
+                descendants descendant
+                WHERE member.parentId=descendant.id
+            ),
+            data AS (
+                SELECT id
+                FROM descendants
+                WHERE id != ' . $id . '
+                ORDER BY id
+            )
+            SELECT *
+            FROM data
+        ';
+        $ancestors = $db->select($query);
+        return collect($ancestors);
     }
 
-    public static function get_siblings($id) {
+    /**
+     * get count of descendants
+     *
+     * @param integer $id
+     * @return integer
+     */
+    public static function get_descendants_count(int $id): int {
+        $query = '
+            WITH RECURSIVE descendants AS
+            (
+                SELECT id, parentId
+                FROM members
+                WHERE id="' . $id .  '"
+
+                UNION ALL
+
+                SELECT member.id, member.parentId
+                FROM members member,
+                descendants descendant
+                WHERE member.parentId=descendant.id
+            ),
+            get AS (
+                SELECT id
+                FROM descendants
+                WHERE id != ' . $id . '
+            )
+            SELECT COUNT(id) as count
+            FROM get
+        ';
+        $ancestors = $db->select($query);
+        return collect($ancestors)->first()->count;
+    }
+
+    /**
+     *
+     *
+     * @param integer $id
+     * @return Collection
+     */
+    public static function get_siblings(int $id): Collection {
         $db = DB::connection(self::$db_connection);
         $table_name = self::$table_name;
         $parent = '
@@ -193,17 +290,68 @@ class Members {
             AND id != ' . $id . '
         ';
         $siblings = collect($db->select($siblings));
-        return $siblings->all();
+        return $siblings;
     }
 
-    public static function get_ancestors($search, $key = 'id') {
+    /**
+     * Undocumented function
+     *
+     * @param integer $id
+     * @param [type] $db
+     * @return Collection
+     */
+    public static function query_get_ancestors(int $id, &$db): Collection {
+        $query = '
+            WITH RECURSIVE ancestors AS
+            (
+                SELECT id, parentId
+                FROM members
+                WHERE id="' . $id .  '"
+                UNION
+                SELECT member.id, member.parentId
+                FROM members member,
+                ancestors ancestor
+                WHERE member.id=ancestor.parentId
+            ),
+            data AS (
+                SELECT id, parentId
+                FROM ancestors
+                WHERE id != ' . $id . '
+                ORDER BY id DESC, parentId DESC
+            )
+            SELECT id
+            FROM data
+        ';
+        $ancestors = $db->select($query);
+        return collect($ancestors);
+    }
+
+    /**
+     * Get collection of ancestors id
+     *
+     * @param integer $id
+     * @return Collection
+     */
+    public static function get_ancestors(int $id): Collection {
+        $db = DB::connection(self::$db_connection);
+        $ancestors = self::query_get_ancestors($id, $db);
+        return $ancestors;
+    }
+
+    /**
+     * Get collection of ancestors id
+     *
+     * @param integer $id
+     * @return integer
+     */
+    public static function get_ancestors_count(int $id): int {
         $db = DB::connection(self::$db_connection);
         $query = '
             WITH RECURSIVE ancestors AS
             (
-                SELECT *
+                SELECT id, parentId
                 FROM members
-                WHERE ' . $key . '="' . $search .  '"
+                WHERE id="' . $id .  '"
                 UNION
                 SELECT member.*
                 FROM members member,
@@ -211,27 +359,44 @@ class Members {
                 WHERE member.id = ancestor.parentId
             ),
             get AS (
-                SELECT * FROM ancestors
-                WHERE id != ' . $search . '
+                SELECT id
+                FROM ancestors
+                WHERE id != ' . $id . '
             )
-            SELECT * FROM get
+            SELECT COUNT(id) as count
+            FROM get
         ';
         $ancestors = $db->select($query);
-        return collect($ancestors);
+        return collect($ancestors)->first()->count;
     }
 
-    public static function get_children($id) {
+    /**
+     * get collection of direct descendant / children
+     *
+     * @param integer $id
+     * @return Collection
+     */
+    public static function get_children(int $id): Collection {
         $db = DB::connection(self::$db_connection);
         $query = '
-            SELECT *
+            SELECT id, parentId
             FROM members
             WHERE parentId = "' . $id . '"
+            ORDER BY id
         ';
         $children = $db->select($query);
         return collect($children);
     }
 
-    public static function get_all($page, $perPage, $level) {
+    /**
+     * Undocumented function
+     *
+     * @param integer $page
+     * @param integer $perPage
+     * @param integer $level
+     * @return Collection
+     */
+    public static function get_all(int $page, int $perPage, int $level): Collection {
         $db     = DB::connection(self::$db_connection);
         $offset = 0;
         $count  = $perPage ? $perPage : 10;
@@ -246,7 +411,13 @@ class Members {
         return collect($members);
     }
 
-    public static function get_one($id) {
+    /**
+     * Undocumented function
+     *
+     * @param integer $id
+     * @return Object
+     */
+    public static function get_one(int $id): Object {
         $db     = DB::connection(self::$db_connection);
         $query = '
             SELECT *
@@ -282,31 +453,23 @@ class Members {
         }
     }
 
-    public static function add($members) {
-        $db = DB::connection(self::$db_connection);
-        $db->transaction(
-            function () use(&$db) {
-            //
-        }
-        );
-    }
+    /**
+     * Undocumented function
+     *
+     * @param integer $id
+     * @return Collection
+     */
+    public static function members_statistic(int $id = null): Collection {
 
-    public static function update() {
-
-    }
-
-    public static function getByProperty($property, $propertyKey = 'id') {
-
-    }
-
-    public static function getByName($name) {}
-
-    public static function getById($id) {
-        return $this->getByProperty($id, 'id')->first();
     }
 
     public static function create_dummy_one($parentId) {
-        $newId = self::add_downline($parentId);
+        $dummy_data = [
+            'parentId' => $parentId,
+            'name'     => 'member name '
+        ];
+        // return $dummy_data;
+        $newId = self::add($parentId, $dummy_data);
         return $newId;
     }
 }
