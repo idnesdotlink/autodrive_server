@@ -153,13 +153,49 @@ class Members {
                 WHERE member.parentId=descendant.id AND
                 member.level = ' . $level . '
             ),
-            get AS (
+            data AS (
                 SELECT COUNT(id) AS counter
                 FROM descendants
                 WHERE id != ' . $id . '
             )
             SELECT *
-            FROM get
+            FROM data
+        ';
+        $ancestors = $db->select($query);
+        return collect($ancestors)->first()->counter;
+    }
+
+    /**
+     * Undocumented function
+     *
+     * @param integer $id
+     * @param integer $level
+     * @param [type] $db
+     * @return integer
+     */
+    public static function query_count_qualification(int $id, int $qualification, &$db): int {
+        $query = '
+            WITH RECURSIVE descendants AS
+            (
+                SELECT id, parentId, level, qualification
+                FROM members
+                WHERE id="' . $id .  '"
+
+                UNION ALL
+
+                SELECT member.id, member.parentId, member.level, member.qualification
+                FROM members member,
+                descendants descendant
+                WHERE member.parentId=descendant.id AND
+                member.qualification = ' . $qualification . '
+            ),
+            data AS (
+                SELECT COUNT(id) AS counter
+                FROM descendants
+                WHERE id != ' . $id . '
+            )
+            SELECT *
+            FROM data
         ';
         $ancestors = $db->select($query);
         return collect($ancestors)->first()->counter;
@@ -174,23 +210,32 @@ class Members {
      * @param Array $data
      * @return integer
      */
-    public static function add(int $parentId = null, Array $data = null): int {
+    public static function add(int $parentId = NULL, Array $data = NULL): int {
         $db = DB::connection(self::$db_connection);
         $db->transaction(
             function () use($parentId, &$db, &$newId, $data) {
                 $newId = $db->table('members')->insertGetId($data);
                 $ancestors = self::query_get_ancestors($newId, $db);
 
-                if ($parentId === null || $ancestors->isEmpty()) return;
+                if ($parentId === NULL || $ancestors->isEmpty()) return;
                 $ancestors->each(
                     function ($value) use(&$db) {
-                        $id = $value->id;
-                        $data = self::get_one($id);
-                        $nextLevel = $data->level + 1;
-                        $req_count = self::query_count_level($data->id, $data->level, $db);
-                        $req = Levels::$levels[$nextLevel]['requirement'];
+                        $ancestor = self::get_one($value->id);
+                        // qualification
+                        $nextQualification = $ancestor->qualification + 1;
+                        $req_count = self::query_count_qualification($ancestor->id, $ancestor->qualification, $db);
+                        $req = Levels::$levels[$nextQualification]['requirement'];
                         if ($req_count >= $req) {
-                            self::query_increment_qualification($data->id, $db);
+                            self::query_increment_qualification($ancestor->id, $db);
+                        }
+                        // level
+                        if (false) {
+                            $nextLevel = $ancestor->level + 1;
+                            $req_count = self::query_count_level($ancestor->id, $ancestor->level, $db);
+                            $req = Levels::$levels[$nextLevel]['requirement'];
+                            if ($req_count >= $req) {
+                                self::query_increment_level($ancestor->id, $db);
+                            }
                         }
                     }
                 );
@@ -207,6 +252,7 @@ class Members {
      * @return Collection
      */
     public static function get_descendants(int $id): Collection {
+        $db = DB::connection(self::$db_connection);
         $query = '
             WITH RECURSIVE descendants AS
             (
@@ -283,7 +329,7 @@ class Members {
         ';
         $parent = collect($db->select($parent));
         $parentId = $parent->first()->parentId;
-        if ($parent->isEmpty() || $parentId === null) return collect([]);
+        if ($parent->isEmpty() || $parentId === NULL) return collect([]);
         $siblings = '
             SELECT * FROM ' . $table_name . '
             WHERE parentId = ' . $parentId . '
@@ -339,7 +385,7 @@ class Members {
     }
 
     /**
-     * Get collection of ancestors id
+     * Get count of ancestors id
      *
      * @param integer $id
      * @return integer
@@ -358,13 +404,13 @@ class Members {
                 ancestors ancestor
                 WHERE member.id = ancestor.parentId
             ),
-            get AS (
+            data AS (
                 SELECT id
                 FROM ancestors
                 WHERE id != ' . $id . '
             )
-            SELECT COUNT(id) as count
-            FROM get
+            SELECT COUNT(id) AS count
+            FROM data
         ';
         $ancestors = $db->select($query);
         return collect($ancestors)->first()->count;
@@ -379,13 +425,39 @@ class Members {
     public static function get_children(int $id): Collection {
         $db = DB::connection(self::$db_connection);
         $query = '
-            SELECT id, parentId
-            FROM members
-            WHERE parentId = "' . $id . '"
+            WITH child AS (
+                SELECT id, parentId
+                FROM members
+                WHERE parentId = "' . $id . '"
+            )
+            select id
+            FROM child
             ORDER BY id
         ';
         $children = $db->select($query);
         return collect($children);
+    }
+
+    /**
+     * get count of direct descendant / children
+     *
+     * @param integer $id
+     * @return int
+     */
+    public static function get_children_count(int $id): int {
+        $db = DB::connection(self::$db_connection);
+        $query = '
+            WITH child AS (
+                SELECT id, parentId
+                FROM members
+                WHERE parentId = "' . $id . '"
+            )
+            select COUNT(id) as counter
+            FROM child
+            ORDER BY id
+        ';
+        $children = $db->select($query);
+        return collect($children)->first()->counter;
     }
 
     /**
@@ -459,17 +531,7 @@ class Members {
      * @param integer $id
      * @return Collection
      */
-    public static function members_statistic(int $id = null): Collection {
+    public static function members_statistic(int $id = NULL): Collection {
 
-    }
-
-    public static function create_dummy_one($parentId) {
-        $dummy_data = [
-            'parentId' => $parentId,
-            'name'     => 'member name '
-        ];
-        // return $dummy_data;
-        $newId = self::add($parentId, $dummy_data);
-        return $newId;
     }
 }

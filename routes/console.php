@@ -174,6 +174,7 @@ Artisan::command('data:table {--action=?}', function ($action) {
     $this->line('Action Success');
 })->describe('Install Tables');
 
-Artisan::command('psg', function () {
-    print_r(Members::get_one(1)->id);
+Artisan::command('mdt', function () {
+    $this->line('child count: ' . Members::get_descendants_count(1));
+    $this->line('child: ' . Members::get_descendants(1)->implode(', '));
 });
