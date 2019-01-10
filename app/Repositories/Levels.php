@@ -97,4 +97,8 @@ class Levels {
         return $db->select($query);
     }
 
+    public static function get_max_level() {
+        return sizeof(self::$levels);
+    }
+
 }

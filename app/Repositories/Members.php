@@ -65,7 +65,7 @@ class Members {
      * @return Collection
      */
     public static function get_dummy_members(): Collection {
-        $data = Storage::disk('local')->get('data/members.json');
+        $data = Storage::disk('local')->get('data/members2.json');
         $data = json_decode($data, true);
         $collection = collect($data);
         $collection->transform(function ($item) {
@@ -141,13 +141,13 @@ class Members {
         $query = '
             WITH RECURSIVE descendants AS
             (
-                SELECT id, parentId, level, qualification
+                SELECT id, parentId, level
                 FROM members
                 WHERE id="' . $id .  '"
 
                 UNION ALL
 
-                SELECT member.id, member.parentId, member.level, member.qualification
+                SELECT member.id, member.parentId, member.level
                 FROM members member,
                 descendants descendant
                 WHERE member.parentId=descendant.id AND
@@ -177,13 +177,13 @@ class Members {
         $query = '
             WITH RECURSIVE descendants AS
             (
-                SELECT id, parentId, level, qualification
+                SELECT id, parentId, qualification
                 FROM members
                 WHERE id="' . $id .  '"
 
                 UNION ALL
 
-                SELECT member.id, member.parentId, member.level, member.qualification
+                SELECT member.id, member.parentId, member.qualification
                 FROM members member,
                 descendants descendant
                 WHERE member.parentId=descendant.id AND
@@ -222,19 +222,27 @@ class Members {
                     function ($value) use(&$db) {
                         $ancestor = self::get_one($value->id);
                         // qualification
-                        $nextQualification = $ancestor->qualification + 1;
-                        $req_count = self::query_count_qualification($ancestor->id, $ancestor->qualification, $db);
+                        $maxQualification = sizeof(Levels::$levels);
+                        $currentQualification = $ancestor->qualification;
+                        $ancestorId = $ancestor->id;
+                        if ($currentQualification >= $maxQualification) return;
+                        $nextQualification = $currentQualification + 1;
+                        $req_count = self::query_count_qualification($ancestorId, $currentQualification, $db);
                         $req = Levels::$levels[$nextQualification]['requirement'];
                         if ($req_count >= $req) {
-                            self::query_increment_qualification($ancestor->id, $db);
+                            self::query_increment_qualification($ancestorId, $db);
                         }
                         // level
                         if (false) {
-                            $nextLevel = $ancestor->level + 1;
-                            $req_count = self::query_count_level($ancestor->id, $ancestor->level, $db);
+                            $maxLevel = sizeof(Levels::$levels);
+                            $currentLevel = $ancestor->level;
+                            $ancestorId = $ancestor->id;
+                            if($currentLevel >= $maxLevel) return;
+                            $nextLevel = $currentLevel + 1;
+                            $req_count = self::query_count_level($ancestorId, $currentLevel, $db);
                             $req = Levels::$levels[$nextLevel]['requirement'];
                             if ($req_count >= $req) {
-                                self::query_increment_level($ancestor->id, $db);
+                                self::query_increment_level($ancestorId, $db);
                             }
                         }
                     }
@@ -399,7 +407,7 @@ class Members {
                 FROM members
                 WHERE id="' . $id .  '"
                 UNION
-                SELECT member.*
+                SELECT member.id, member.parentId
                 FROM members member,
                 ancestors ancestor
                 WHERE member.id = ancestor.parentId

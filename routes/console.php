@@ -185,3 +185,7 @@ Artisan::command('mdt', function () {
     $this->line('child count: ' . Members::get_descendants_count(1));
     $this->line('child: ' . Members::get_descendants(1)->implode(', '));
 });
+
+Artisan::command('maxlevel', function () {
+    $this->line('max level :' . Levels::get_max_level());
+});
