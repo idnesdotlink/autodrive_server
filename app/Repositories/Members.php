@@ -65,7 +65,7 @@ class Members {
      * @return Collection
      */
     public static function get_dummy_members(): Collection {
-        $data = Storage::disk('local')->get('data/members.json');
+        $data = Storage::disk('local')->get('data/members-level4.json');
         $data = json_decode($data, true);
         $collection = collect($data);
         $collection->transform(function ($item) {
@@ -262,11 +262,11 @@ class Members {
 
                 if ($parentId === NULL || $ancestors->isEmpty()) return;
 
-                $ancestors->transform(
+                /* $ancestors->transform(
                     function($member) {
                         $member = self::get_one($member->id);
                     }
-                );
+                ); */
 
                 $ancestors->each(
                     function ($value) use(&$db) {
@@ -304,7 +304,7 @@ class Members {
                 );
 
                 // downlineCount
-                self::query_increment_ancestor_downlineCount($ancestors, $db);
+                // self::query_increment_ancestor_downlineCount($ancestors, $db);
             },
             5
         );

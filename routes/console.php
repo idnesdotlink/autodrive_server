@@ -195,3 +195,37 @@ Artisan::command('gc', function () {
     $db = null;
     $this->line('gc :' . Members::get_descendants_count(1, $db));
 });
+
+Artisan::command('mupd', function () {
+    $db = DB::connection('autodrive_tip');
+    $db->statement('
+        DROP TABLE IF EXISTS mupd
+    ');
+    $db->statement('
+        CREATE TABLE mupd (
+            id TINYINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            text TEXT
+        )
+    ');
+    $table = $db->table('mupd');
+    $table->insert([
+        ['text' => 'a'],
+        ['text' => 'b'],
+        ['text' => 'c']
+    ]);
+});
+
+Artisan::command('mupd2', function () {
+    $db = DB::connection('autodrive_tip');
+    $db->update('
+        UPDATE mupd s
+        JOIN (
+            SELECT 1 as id, "f" as new_text
+            UNION ALL
+            SELECT 2, "g"
+            UNION ALL
+            SELECT 3, "h"
+        ) vals ON s.id = vals.id
+        SET text = new_text
+    ');
+});
