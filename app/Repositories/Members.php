@@ -65,7 +65,7 @@ class Members {
      * @return Collection
      */
     public static function get_dummy_members(): Collection {
-        $data = Storage::disk('local')->get('data/members2.json');
+        $data = Storage::disk('local')->get('data/members.json');
         $data = json_decode($data, true);
         $collection = collect($data);
         $collection->transform(function ($item) {
@@ -75,12 +75,14 @@ class Members {
     }
 
     /**
-     * argument
-     * $data = collection
-     * return void
-    */
-    public static function batch_insert($data): void {
-        $db = DB::connection(self::$db_connection);
+     * Undocumented function
+     *
+     * @param Array $data
+     * @param Object|null $db
+     * @return void
+     */
+    public static function batch_insert(Array $data, &$db = null): void {
+        $db = ($db === null) ? DB::connection(self::$db_connection) : $db;
         $table_name = self::$table_name;
         try {
             $db->transaction(
@@ -100,11 +102,48 @@ class Members {
     /**
      * Undocumented function
      *
-     * @param integer $id
-     * @param [type] $db
+     * @param Collection $collection
+     * @param Object|null $db
      * @return integer
      */
-    public static function query_increment_level(int $id, &$db): int {
+    public static function query_increment_ancestor_downlineCount(Collection $collection, &$db = null): int {
+        $db = ($db === null) ? DB::connection(self::$db_connection) : $db;
+        $ancestors = $collection->implode(', ');
+        $query = '
+            UPDATE members
+            SET downlineCount = downlineCount + 1
+            WHERE id in (' . $ancestors . ')
+        ';
+        return $db->update($query);
+    }
+
+    /**
+     * Undocumented function
+     *
+     * @param Collection $collection
+     * @param Object|null $db
+     * @return integer
+     */
+    public static function query_update_downlineLevelCount(Collection $collection, &$db = null): int {
+        $db = ($db === null) ? DB::connection(self::$db_connection) : $db;
+        $ancestors = $collection->implode(', ');
+        $query = '
+            UPDATE members
+            SET downlineCount = downlineCount + 1
+            WHERE id in (' . $ancestors . ')
+        ';
+        return $db->update($query);
+    }
+
+    /**
+     * Undocumented function
+     *
+     * @param integer $id
+     * @param Object|null $db
+     * @return integer
+     */
+    public static function query_increment_level(int $id, &$db = null): int {
+        $db = ($db === null) ? DB::connection(self::$db_connection) : $db;
         $query = '
             UPDATE members
             SET level = level + 1
@@ -117,10 +156,11 @@ class Members {
      * Undocumented function
      *
      * @param integer $id
-     * @param [type] $db
+     * @param Object|null $db
      * @return integer
      */
-    public static function query_increment_qualification(int $id, &$db): int {
+    public static function query_increment_qualification(int $id, &$db = null): int {
+        $db = ($db === null) ? DB::connection(self::$db_connection) : $db;
         $query = '
             UPDATE members
             SET qualification = qualification + 1
@@ -134,10 +174,11 @@ class Members {
      *
      * @param integer $id
      * @param integer $level
-     * @param [type] $db
+     * @param Object|null $db
      * @return integer
      */
-    public static function query_count_level(int $id, int $level, &$db): int {
+    public static function query_count_level(int $id, int $level, &$db = null): int {
+        $db = ($db === null) ? DB::connection(self::$db_connection) : $db;
         $query = '
             WITH RECURSIVE descendants AS
             (
@@ -150,7 +191,7 @@ class Members {
                 SELECT member.id, member.parentId, member.level
                 FROM members member,
                 descendants descendant
-                WHERE member.parentId=descendant.id AND
+                WHERE member.parentId = descendant.id AND
                 member.level = ' . $level . '
             ),
             data AS (
@@ -170,10 +211,11 @@ class Members {
      *
      * @param integer $id
      * @param integer $level
-     * @param [type] $db
+     * @param Object|null $db
      * @return integer
      */
-    public static function query_count_qualification(int $id, int $qualification, &$db): int {
+    public static function query_count_qualification(int $id, int $qualification, &$db = null): int {
+        $db = ($db === null) ? DB::connection(self::$db_connection) : $db;
         $query = '
             WITH RECURSIVE descendants AS
             (
@@ -186,7 +228,7 @@ class Members {
                 SELECT member.id, member.parentId, member.qualification
                 FROM members member,
                 descendants descendant
-                WHERE member.parentId=descendant.id AND
+                WHERE member.parentId = descendant.id AND
                 member.qualification = ' . $qualification . '
             ),
             data AS (
@@ -208,45 +250,61 @@ class Members {
      *
      * @param integer $parentId
      * @param Array $data
+     * @param Object|null $db
      * @return integer
      */
-    public static function add(int $parentId = NULL, Array $data = NULL): int {
-        $db = DB::connection(self::$db_connection);
+    public static function add(int $parentId = NULL, Array $data = NULL, &$db = null): int {
+        $db = ($db === null) ? DB::connection(self::$db_connection) : $db;
         $db->transaction(
             function () use($parentId, &$db, &$newId, $data) {
                 $newId = $db->table('members')->insertGetId($data);
                 $ancestors = self::query_get_ancestors($newId, $db);
 
                 if ($parentId === NULL || $ancestors->isEmpty()) return;
+
+                $ancestors->transform(
+                    function($member) {
+                        $member = self::get_one($member->id);
+                    }
+                );
+
                 $ancestors->each(
                     function ($value) use(&$db) {
                         $ancestor = self::get_one($value->id);
-                        // qualification
-                        $maxQualification = sizeof(Levels::$levels);
-                        $currentQualification = $ancestor->qualification;
-                        $ancestorId = $ancestor->id;
-                        if ($currentQualification >= $maxQualification) return;
-                        $nextQualification = $currentQualification + 1;
-                        $req_count = self::query_count_qualification($ancestorId, $currentQualification, $db);
-                        $req = Levels::$levels[$nextQualification]['requirement'];
-                        if ($req_count >= $req) {
-                            self::query_increment_qualification($ancestorId, $db);
+
+                        $increment_qualification = true;
+                        $increment_level = false;
+
+                        if ($increment_qualification) {
+                            $maxQualification = sizeof(Levels::$levels);
+                            $currentQualification = $ancestor->qualification;
+                            $ancestorId = $ancestor->id;
+                            if ($currentQualification >= $maxQualification) return;
+                            $nextQualification = $currentQualification + 1;
+                            $required_qualification_count = self::query_count_qualification($ancestorId, $currentQualification, $db);
+                            $required = Levels::$levels[$nextQualification]['requirement'];
+                            if ($required_qualification_count >= $required) {
+                                self::query_increment_qualification($ancestorId, $db);
+                            }
                         }
-                        // level
-                        if (false) {
+
+                        if ($increment_level) {
                             $maxLevel = sizeof(Levels::$levels);
                             $currentLevel = $ancestor->level;
                             $ancestorId = $ancestor->id;
                             if($currentLevel >= $maxLevel) return;
                             $nextLevel = $currentLevel + 1;
-                            $req_count = self::query_count_level($ancestorId, $currentLevel, $db);
-                            $req = Levels::$levels[$nextLevel]['requirement'];
-                            if ($req_count >= $req) {
+                            $required_level_count = self::query_count_level($ancestorId, $currentLevel, $db);
+                            $required = Levels::$levels[$nextLevel]['requirement'];
+                            if ($required_level_count >= $required) {
                                 self::query_increment_level($ancestorId, $db);
                             }
                         }
                     }
                 );
+
+                // downlineCount
+                self::query_increment_ancestor_downlineCount($ancestors, $db);
             },
             5
         );
@@ -254,13 +312,14 @@ class Members {
     }
 
     /**
-     * get collections id of descendants
+     * Undocumented function
      *
      * @param integer $id
+     * @param Object|null $db
      * @return Collection
      */
-    public static function get_descendants(int $id): Collection {
-        $db = DB::connection(self::$db_connection);
+    public static function get_descendants(int $id, &$db = null): Collection {
+        $db = ($db === null) ? DB::connection(self::$db_connection) : $db;
         $query = '
             WITH RECURSIVE descendants AS
             (
@@ -273,7 +332,7 @@ class Members {
                 SELECT member.id, member.parentId
                 FROM members member,
                 descendants descendant
-                WHERE member.parentId=descendant.id
+                WHERE member.parentId = descendant.id
             ),
             data AS (
                 SELECT id
@@ -292,9 +351,11 @@ class Members {
      * get count of descendants
      *
      * @param integer $id
+     * @param Object|null $db
      * @return integer
      */
-    public static function get_descendants_count(int $id): int {
+    public static function get_descendants_count(int $id, &$db = null): int {
+        $db = ($db === null) ? DB::connection(self::$db_connection) : $db;
         $query = '
             WITH RECURSIVE descendants AS
             (
@@ -307,7 +368,7 @@ class Members {
                 SELECT member.id, member.parentId
                 FROM members member,
                 descendants descendant
-                WHERE member.parentId=descendant.id
+                WHERE member.parentId = descendant.id
             ),
             get AS (
                 SELECT id
@@ -322,13 +383,14 @@ class Members {
     }
 
     /**
-     *
+     * Undocumented function
      *
      * @param integer $id
+     * @param Object|null $db
      * @return Collection
      */
-    public static function get_siblings(int $id): Collection {
-        $db = DB::connection(self::$db_connection);
+    public static function get_siblings(int $id, &$db = null): Collection {
+        $db = ($db === null) ? DB::connection(self::$db_connection) : $db;
         $table_name = self::$table_name;
         $parent = '
             SELECT parentId FROM ' . $table_name . '
@@ -354,7 +416,8 @@ class Members {
      * @param [type] $db
      * @return Collection
      */
-    public static function query_get_ancestors(int $id, &$db): Collection {
+    public static function query_get_ancestors(int $id, &$db = null): Collection {
+        $db = ($db === null) ? DB::connection(self::$db_connection) : $db;
         $query = '
             WITH RECURSIVE ancestors AS
             (
@@ -365,7 +428,7 @@ class Members {
                 SELECT member.id, member.parentId
                 FROM members member,
                 ancestors ancestor
-                WHERE member.id=ancestor.parentId
+                WHERE member.id = ancestor.parentId
             ),
             data AS (
                 SELECT id, parentId
@@ -386,20 +449,21 @@ class Members {
      * @param integer $id
      * @return Collection
      */
-    public static function get_ancestors(int $id): Collection {
-        $db = DB::connection(self::$db_connection);
+    public static function get_ancestors(int $id, &$db = null): Collection {
+        $db = ($db === null) ? DB::connection(self::$db_connection) : $db;
         $ancestors = self::query_get_ancestors($id, $db);
         return $ancestors;
     }
 
     /**
-     * Get count of ancestors id
+     * Undocumented function
      *
      * @param integer $id
+     * @param Object|null $db
      * @return integer
      */
-    public static function get_ancestors_count(int $id): int {
-        $db = DB::connection(self::$db_connection);
+    public static function get_ancestors_count(int $id, &$db = null): int {
+        $db = ($db === null) ? DB::connection(self::$db_connection) : $db;
         $query = '
             WITH RECURSIVE ancestors AS
             (
@@ -430,8 +494,8 @@ class Members {
      * @param integer $id
      * @return Collection
      */
-    public static function get_children(int $id): Collection {
-        $db = DB::connection(self::$db_connection);
+    public static function get_children(int $id, &$db = null): Collection {
+        $db = ($db === null) ? DB::connection(self::$db_connection) : $db;
         $query = '
             WITH child AS (
                 SELECT id, parentId
@@ -452,8 +516,8 @@ class Members {
      * @param integer $id
      * @return int
      */
-    public static function get_children_count(int $id): int {
-        $db = DB::connection(self::$db_connection);
+    public static function get_children_count(int $id, &$db = null): int {
+        $db = ($db === null) ? DB::connection(self::$db_connection) : $db;
         $query = '
             WITH child AS (
                 SELECT id, parentId
@@ -495,10 +559,11 @@ class Members {
      * Undocumented function
      *
      * @param integer $id
+     * @param Object|null $db
      * @return Object
      */
-    public static function get_one(int $id): Object {
-        $db     = DB::connection(self::$db_connection);
+    public static function get_one(int $id, &$db = null): Object {
+        $db = ($db === null) ? DB::connection(self::$db_connection) : $db;
         $query = '
             SELECT *
             FROM members
@@ -536,10 +601,10 @@ class Members {
     /**
      * Undocumented function
      *
-     * @param integer $id
+     * @param integer|null $id
      * @return Collection
      */
-    public static function members_statistic(int $id = NULL): Collection {
+    public static function members_statistic(int $id = null): Collection {
 
     }
 }

@@ -189,3 +189,9 @@ Artisan::command('mdt', function () {
 Artisan::command('maxlevel', function () {
     $this->line('max level :' . Levels::get_max_level());
 });
+
+Artisan::command('gc', function () {
+    // $db = DB::connection('autodrive_tip');
+    $db = null;
+    $this->line('gc :' . Members::get_descendants_count(1, $db));
+});
