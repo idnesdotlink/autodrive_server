@@ -4,9 +4,7 @@ use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Artisan;
-use App\Repositories\Members;
-use App\Repositories\Levels;
-use App\Repositories\Installer;
+use App\Repositories\{Members, Levels, Installer, MemberStatistics};
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -204,14 +202,14 @@ Artisan::command('mupd', function () {
     $db->statement('
         CREATE TABLE mupd (
             id TINYINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-            text TEXT
+            int TEXT
         )
     ');
     $table = $db->table('mupd');
     $table->insert([
-        ['text' => 'a'],
-        ['text' => 'b'],
-        ['text' => 'c']
+        ['text' => 1],
+        ['text' => 2],
+        ['text' => 3]
     ]);
 });
 
@@ -220,12 +218,23 @@ Artisan::command('mupd2', function () {
     $db->update('
         UPDATE mupd s
         JOIN (
-            SELECT 1 as id, "f" as new_text
+            SELECT 1 as id, 3 as new_text
             UNION ALL
-            SELECT 2, "g"
+            SELECT 2, 2
             UNION ALL
-            SELECT 3, "h"
+            SELECT 3, 1
         ) vals ON s.id = vals.id
         SET text = new_text
     ');
+});
+
+Artisan::command('a', function () {
+    $db = DB::connection('autodrive_tip');
+    MemberStatistics::drop_table($db);
+    MemberStatistics::create_table($db);
+});
+
+Artisan::command('b', function () {
+    $db = DB::connection('autodrive_tip');
+    MemberStatistics::incrementStat(0, 'q1', $db);
 });

@@ -59,6 +59,8 @@ class Installer {
                 Members::create_table($db);
                 Promos::drop_table($db);
                 Promos::create_table($db);
+                MemberStatistics::drop_table($db);
+                MemberStatistics::create_table($db);
                 $db->statement('DROP TABLE IF EXISTS levels');
                 $db->statement('
                     CREATE TABLE levels (

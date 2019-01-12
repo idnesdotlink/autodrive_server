@@ -1,10 +1,11 @@
 <?php
+declare(strict_types=1);
 
 namespace App\Repositories;
 use Illuminate\Support\Facades\{DB, Storage};
 use Illuminate\Support\Collection;
-use App\Repositories\Levels;
-
+use App\Repositories\{Levels, MemberStatistics};
+// use stdClass;
 class Members {
 
     public static $table_name = 'members';
@@ -24,9 +25,10 @@ class Members {
                 province VARCHAR(128) NOT NULL DEFAULT \'\',
                 level TINYINT UNSIGNED NOT NULL DEFAULT 1,
                 qualification TINYINT UNSIGNED NOT NULL DEFAULT 1,
-                downlineLevelCount VARCHAR(512) NOT NULL DEFAULT \'[]\',
+                qualificationHistory VARCHAR(128) NOT NULL DEFAULT \'[]\',
+                downlineLevelCount VARCHAR(128) NOT NULL DEFAULT \'[]\',
                 downlineCount MEDIUMINT UNSIGNED NOT NULL DEFAULT 0,
-                levelHistory VARCHAR(256) NOT NULL DEFAULT \'[]\',
+                levelHistory VARCHAR(128) NOT NULL DEFAULT \'[]\',
                 status TINYINT UNSIGNED NOT NULL DEFAULT 1,
                 created DATETIME DEFAULT NOW(),
                 updated DATETIME NOT NULL DEFAULT NOW(),
@@ -157,16 +159,27 @@ class Members {
      *
      * @param integer $id
      * @param Object|null $db
-     * @return integer
+     * @return Collection
      */
-    public static function query_increment_qualification(int $id, &$db = null): int {
+    public static function query_increment_qualification(int $id, &$db = null): Collection {
         $db = ($db === null) ? DB::connection(self::$db_connection) : $db;
         $query = '
             UPDATE members
             SET qualification = qualification + 1
+
             WHERE id = ' . $id . '
         ';
-        return $db->update($query);
+        $db->update($query);
+        $query = '
+            SELECT qualification
+            FROM members
+            WHERE id = ' . $id . '
+        ';
+        $qualification = collect($db->select($query))->first()->qualification;
+        $return = collect([
+            'from' => $qualification - 1, 'to' => $qualification
+        ]);
+        return $return;
     }
 
     /**
@@ -244,67 +257,70 @@ class Members {
     }
 
     /**
+     * Undocumented function
+     *
+     * @param Object $member
+     * @param Object|null $db
+     * @return Bool
+     */
+    public static function can_increment_qualification(Object $member, Object &$db = null): bool {
+        $db = ($db === null) ? DB::connection(self::$db_connection) : $db;
+        $max = sizeof(Levels::$levels);
+        $current = $member->qualification;
+        $id = $member->id;
+        if ($current >= $max) return false;
+        $next = $current + 1;
+        $count = self::query_count_qualification($id, $current, $db);
+        $required = Levels::$levels[$next]['requirement'];
+        return ($count >= $required);
+    }
+
+    public static function query_increment_downline(int $id, Object &$db = null) {
+        $db = ($db === null) ? DB::connection(self::$db_connection) : $db;
+        $query = '
+            UPDATE members
+            SET downlineCount = downlineCount + 1
+            WHERE id = ' . $id . '
+        ';
+        $db->update($query);
+    }
+
+    /**
      * add new member
      * accepting array of member data
      * return new member id
      *
-     * @param integer $parentId
+     * @param integer|null $parentId
      * @param Array $data
      * @param Object|null $db
      * @return integer
      */
-    public static function add(int $parentId = NULL, Array $data = NULL, &$db = null): int {
+    public static function add(int $parentId = null, Array $data = null, &$db = null): int {
         $db = ($db === null) ? DB::connection(self::$db_connection) : $db;
         $db->transaction(
             function () use($parentId, &$db, &$newId, $data) {
                 $newId = $db->table('members')->insertGetId($data);
                 $ancestors = self::query_get_ancestors($newId, $db);
-
-                if ($parentId === NULL || $ancestors->isEmpty()) return;
-
-                /* $ancestors->transform(
-                    function($member) {
-                        $member = self::get_one($member->id);
-                    }
-                ); */
-
+                MemberStatistics::incrementStat(0, 'q1', $db);
+                if ($parentId === null || $ancestors->isEmpty()) return;
                 $ancestors->each(
-                    function ($value) use(&$db) {
-                        $ancestor = self::get_one($value->id);
-
-                        $increment_qualification = true;
-                        $increment_level = false;
-
-                        if ($increment_qualification) {
-                            $maxQualification = sizeof(Levels::$levels);
-                            $currentQualification = $ancestor->qualification;
-                            $ancestorId = $ancestor->id;
-                            if ($currentQualification >= $maxQualification) return;
-                            $nextQualification = $currentQualification + 1;
-                            $required_qualification_count = self::query_count_qualification($ancestorId, $currentQualification, $db);
-                            $required = Levels::$levels[$nextQualification]['requirement'];
-                            if ($required_qualification_count >= $required) {
-                                self::query_increment_qualification($ancestorId, $db);
-                            }
-                        }
-
-                        if ($increment_level) {
-                            $maxLevel = sizeof(Levels::$levels);
-                            $currentLevel = $ancestor->level;
-                            $ancestorId = $ancestor->id;
-                            if($currentLevel >= $maxLevel) return;
-                            $nextLevel = $currentLevel + 1;
-                            $required_level_count = self::query_count_level($ancestorId, $currentLevel, $db);
-                            $required = Levels::$levels[$nextLevel]['requirement'];
-                            if ($required_level_count >= $required) {
-                                self::query_increment_level($ancestorId, $db);
-                            }
+                    function ($member) use(&$db, $ancestors, $parentId) {
+                        MemberStatistics::incrementStat($member->id, 'q1', $db);
+                        if (self::can_increment_qualification($member, $db)) {
+                            $q = self::query_increment_qualification($member->id, $db);
+                            $to = $q->get('to');
+                            $from = $q->get('from');
+                            MemberStatistics::incrementStat(0, 'q' . $to, $db);
+                            MemberStatistics::decrementStat(0, 'q' . $from, $db);
+                            self::query_get_ancestors($member->id, $db)->each(
+                                function ($v) use($to, $from, &$db) {
+                                    MemberStatistics::incrementStat($v->id, 'q' . $to, $db);
+                                    MemberStatistics::decrementStat($v->id, 'q' . $from, $db);
+                                }
+                            );
                         }
                     }
                 );
-
-                // downlineCount
-                // self::query_increment_ancestor_downlineCount($ancestors, $db);
             },
             5
         );
@@ -421,22 +437,22 @@ class Members {
         $query = '
             WITH RECURSIVE ancestors AS
             (
-                SELECT id, parentId
+                SELECT id, parentId, qualification
                 FROM members
                 WHERE id="' . $id .  '"
                 UNION
-                SELECT member.id, member.parentId
+                SELECT member.id, member.parentId, member.qualification
                 FROM members member,
                 ancestors ancestor
                 WHERE member.id = ancestor.parentId
             ),
             data AS (
-                SELECT id, parentId
+                SELECT *
                 FROM ancestors
                 WHERE id != ' . $id . '
                 ORDER BY id DESC, parentId DESC
             )
-            SELECT id
+            SELECT *
             FROM data
         ';
         $ancestors = $db->select($query);
