@@ -1,10 +1,8 @@
 <?php
 
 use Illuminate\Foundation\Inspiring;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Artisan;
-use App\Repositories\{Members, Levels, Installer, MemberStatistics};
+use Illuminate\Support\Facades\{DB, Storage, Artisan};
+use App\Logic\{Members, Levels, Installer, MemberQualification};
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -78,7 +76,7 @@ Artisan::command('installer:drop', function () {
 
 Artisan::command('installer:seed-scenario', function () {
     $this->comment('Processing Installer');
-    $dummies = Members::get_dummy_members();
+    $dummies = Installer::get_dummy_members();
     // $dummies = $dummies->take(12);
     // print_r($dummies->first());
     // exit();
@@ -230,11 +228,16 @@ Artisan::command('mupd2', function () {
 
 Artisan::command('a', function () {
     $db = DB::connection('autodrive_tip');
-    MemberStatistics::drop_table($db);
-    MemberStatistics::create_table($db);
+    MemberQualification::drop_table($db);
+    MemberQualification::create_table($db);
 });
 
 Artisan::command('b', function () {
     $db = DB::connection('autodrive_tip');
-    MemberStatistics::incrementStat(0, 'q1', $db);
+    MemberQualification::incrementStat(0, 'q1', $db);
+});
+
+Artisan::command('c {cnt}', function ($cnt = 1) {
+    $scenario = Levels::create_scenario($cnt);
+    print_r($scenario->count());
 });
