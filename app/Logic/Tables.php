@@ -5,6 +5,7 @@ namespace App\Logic;
 use Illuminate\Support\Facades\{DB, Storage};
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
+use Illuminate\Database\ConnectionInterface;
 
 class Tables {
     public static $connection_name = 'autodrive_tip';
@@ -14,11 +15,21 @@ class Tables {
 
     public static $migrations_register = [];
 
-    public static function db() {
+    /**
+     * Undocumented function
+     *
+     * @return ConnectionInterface
+     */
+    public static function db(): ConnectionInterface {
         return DB::connection(self::$connection_name);
     }
 
-    public static function up() {
+    /**
+     * Undocumented function
+     *
+     * @return void
+     */
+    public static function up(): void {
         $db = self::db();
         $register = collect(self::$registers);
         $register->each(
@@ -29,7 +40,12 @@ class Tables {
         );
     }
 
-    public static function down() {
+    /**
+     * Undocumented function
+     *
+     * @return void
+     */
+    public static function down(): void {
         $db = self::db();
         $register = collect(self::$registers);
         $register->each(
@@ -43,7 +59,7 @@ class Tables {
     /**
      * Undocumented function
      *
-     * @param Object $command
+     * @param Command $command
      * @return void
      */
     public static function recreate_command(Command &$command): void {
@@ -68,6 +84,12 @@ class Tables {
         }
     }
 
+    /**
+     * Undocumented function
+     *
+     * @param Command $command
+     * @return void
+     */
     public static function drop_command(Command &$command): void {
         $tables = self::all();
         $tables = $tables->prepend('all');
@@ -79,7 +101,10 @@ class Tables {
         if ($table === 'all') {
             $command->info('Delete All Table');
         } else {
-            $command->info('Delete Table ' . $table);
+            try {
+                self::drop($table);
+                $command->info('Delete Table ' . $table);
+            } catch (Exception $error) {}
         }
     }
 
@@ -96,6 +121,17 @@ class Tables {
         };
         $tables->transform($transform_table);
         $command->table(['name'], $tables);
+    }
+
+    /**
+     * Undocumented function
+     *
+     * @param string $name
+     * @return void
+     */
+    public static function drop(string $name): void {
+        $db = self::db();
+        $db->statement('DROP TABLE IF EXISTS ' . $name);
     }
 
     /**

@@ -5,13 +5,20 @@ namespace App\Logic;
 use Illuminate\Support\Facades\{DB, Storage};
 use Illuminate\Support\Collection;
 use App\Logic\{Levels, MemberQualification};
+use Illuminate\Database\ConnectionInterface;
 // use stdClass;
 class Members {
 
     public static $table_name = 'members';
     public static $db_connection = 'autodrive_tip';
 
-    public static function create_table(&$db) {
+    /**
+     * Undocumented function
+     *
+     * @param ConnectionInterface $db
+     * @return void
+     */
+    public static function create_table(ConnectionInterface &$db) {
         $validUntilConfig = 12;
         $db->statement('
             CREATE TABLE members (
@@ -40,12 +47,12 @@ class Members {
     }
 
     /**
+     * Undocumented function
      *
-     *
-     * @param [type] $db
+     * @param ConnectionInterface $db
      * @return void
      */
-    public static function drop_table(&$db): void {
+    public static function drop_table(ConnectionInterface &$db): void {
         $db->statement('DROP TABLE IF EXISTS members');
     }
 
@@ -524,9 +531,10 @@ class Members {
      * get collection of direct descendant / children
      *
      * @param integer $id
+     * @param ConnectionInterface $db
      * @return Collection
      */
-    public static function get_children(int $id, &$db = null): Collection {
+    public static function get_children(int $id, ConnectionInterface &$db = null): Collection {
         $db = ($db === null) ? DB::connection(self::$db_connection) : $db;
         $query = '
             WITH child AS (
@@ -546,9 +554,10 @@ class Members {
      * get count of direct descendant / children
      *
      * @param integer $id
-     * @return int
+     * @param ConnectionInterface $db
+     * @return integer
      */
-    public static function get_children_count(int $id, &$db = null): int {
+    public static function get_children_count(int $id, ConnectionInterface &$db = null): int {
         $db = ($db === null) ? DB::connection(self::$db_connection) : $db;
         $query = '
             WITH child AS (

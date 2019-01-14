@@ -6,12 +6,12 @@ use Illuminate\Support\Facades\{DB, Storage};
 
 class MemberQualification {
 
-    public static $table_name = 'MemberQualification';
+    public static $table_name = 'member_qualification';
     public static $db_connection = 'autodrive_tip';
 
     public static function create_table(&$db) {
         $db->statement('
-            CREATE TABLE MemberQualification (
+            CREATE TABLE member_qualification (
                 memberId MEDIUMINT UNSIGNED,
                 name VARCHAR(128) NOT NULL,
                 value MEDIUMINT UNSIGNED NOT NULL DEFAULT 0,
@@ -28,13 +28,13 @@ class MemberQualification {
      * @return void
      */
     public static function drop_table(&$db): void {
-        $db->statement('DROP TABLE IF EXISTS MemberQualification');
+        $db->statement('DROP TABLE IF EXISTS member_qualification');
     }
 
     public static function get_all_qualification($memberId, &$db) {
         $query = '
             SELECT *
-            FROM MemberQualification
+            FROM member_qualification
             WHERE memberId = ' . $memberId . '
         ';
         $stat = $db->select($query);
@@ -52,7 +52,7 @@ class MemberQualification {
     public static function get_qualification(string $key, int $memberId = null, Object &$db): int {
         $sql = '
             SELECT *
-            FROM MemberQualification
+            FROM member_qualification
             WHERE memberId = ' . $memberId . ' AND
             name = \'' . $key . '\'
         ';
@@ -73,7 +73,7 @@ class MemberQualification {
     public static function increment(int $memberId, string $key, int $q = null, Object &$db): int {
         $q = ($q === null) ? 0 : $q;
         $sql = '
-            INSERT INTO MemberQualification
+            INSERT INTO member_qualification
             (memberId, name, value, qualification)
             VALUES
             (' . $memberId . ', \'' . $key . '\', 1, NULL)
@@ -86,7 +86,7 @@ class MemberQualification {
         $db->insert($sql);
         $sql = '
             SELECT value
-            FROM MemberQualification
+            FROM member_qualification
             WHERE memberId = ' . $memberId . ' AND
             name = \'' . $key . '\'
         ';
@@ -104,7 +104,7 @@ class MemberQualification {
      */
     public static function decrement(int $memberId, string $key, int $q = null, Object &$db): int {
         $sql = '
-            INSERT INTO MemberQualification
+            INSERT INTO member_qualification
             (memberId, name, value, qualification)
             VALUES
             (' . $memberId . ', \'' . $key . '\', 1, NULL)
@@ -117,7 +117,7 @@ class MemberQualification {
         $db->insert($sql);
         $sql = '
             SELECT value
-            FROM MemberQualification
+            FROM member_qualification
             WHERE memberId = ' . $memberId . ' AND
             name = \'' . $key . '\'
         ';
