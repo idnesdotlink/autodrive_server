@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 
 Route::middleware([])->group(
     function () {
@@ -15,6 +16,14 @@ Route::middleware([])->group(
         Route::get('/members', function (Request $request) {
             return 'members';
         })->name('members.index');
+
+        Route::post('/members', function (Request $request) {
+
+            return response()->json($request->input('nama'));
+
+            // return response(json_encode($request->input()), 200)
+            // ->header('Content-Type', 'application/json');
+        })->name('members.index.post');
 
         Route::get('/members/{member}/token', function (Request $request) {
             return $request->member . '-token';

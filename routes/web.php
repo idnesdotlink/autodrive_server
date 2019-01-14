@@ -8,9 +8,16 @@ Route::get('/', function () {
 })->name('root');
 
 
-Route::prefix('member')->middleware([])->group(function () {
+Route::prefix('members')->group(function () {
     Route::get('/', function () {
         echo 'test';
+    });
+
+    Route::post('/', function () {
+        return response('{"test": "pusing"}')
+        ->header('Content-Type', 'application/json')
+        ->header('X-Header-One', 'Header Value')
+        ->header('X-Header-Two', 'Header Value');
     });
     Route::get('/', function () {
         echo 'test';
