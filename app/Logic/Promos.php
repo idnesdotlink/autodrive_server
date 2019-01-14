@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 namespace App\Logic;
 use Illuminate\Support\Facades\DB;
@@ -23,7 +24,7 @@ class Promos {
     }
 
     public static function drop_table(&$db) {
-        $db->statement('DROP TABLE IF EXISTS ' . self::$table_name);        
+        $db->statement('DROP TABLE IF EXISTS ' . self::$table_name);
     }
 
     public static function create_promo() {

@@ -2,7 +2,7 @@
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\{DB, Storage, Artisan};
-use App\Logic\{Members, Levels, Installer, MemberQualification, Scenario, Tables};
+use App\Logic\{Members, Levels, Installer, MemberQualification};
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -238,18 +238,61 @@ Artisan::command('b', function () {
 });
 
 Artisan::command('scenario:json', function () {
-    Scenario::json_scenario_console();
+    $pathToScenarios = 'scenario';
+    $storage = Storage::disk('local');
+    if (!$storage->exists($pathToScenarios)) {
+        $storage->makeDirectory($pathToScenarios);
+    } else {
+        $storage->deleteDirectory($pathToScenarios);
+        $storage->makeDirectory($pathToScenarios);
+    }
+    $levels = Levels::$levels;
+    $levels = collect($levels);
+    $levels->each(
+        function ($level) use($pathToScenarios, $storage) {
+            $id = $level['id'];
+            $scenario = Levels::create_scenario($id);
+            $pathToScenarios = $pathToScenarios . '/' . $id . '.json';
+            $storage->put($pathToScenarios, $scenario->toJson());
+        }
+    );
 });
 
 Artisan::command('scenario:load', function () {
-    Tables::down();
-    Tables::up();
-    $console = $this;
-    $output  = $this->output;
-    Scenario::load_scenario_console($console, $output);
-});
-
-Artisan::command('tables:generate', function () {
-    Tables::down();
-    Tables::up();
+    $levels = Levels::$levels;
+    $levels = collect($levels);
+    $scenario_mapper = function ($scenario) {
+        return $scenario['name'];
+    };
+    $scenarios = $levels->map($scenario_mapper)->toArray();   
+    $level = $this->choice(
+        'scenario level apa yang akan di load',
+        $scenarios
+    );
+    sleep(1);
+    $this->line("menggunakan scenario $level");
+    $storage = Storage::disk('local');
+    $scenario_file = $levels->whereStrict('name', $level) ->first()['id'];
+    $scenario_file = 'scenario/' . $scenario_file . '.json';
+    $data = $storage->get($scenario_file);
+    $data = json_decode($data, true);
+    $data = collect($data);
+    $dataCount = $data->count();
+    sleep(1);
+    $this->line($dataCount . ' scenario data');
+    $this->output->progressStart($dataCount);
+    $command = $this;
+    $data->each(
+        function ($value) use (&$command) {
+            $insertData = [
+                'name'     => 'name ' . $value['id'],
+                'parentId' => $value['parentId'],
+                'level'    => $value['level']
+            ];
+            time_nanosleep(0, 100000);
+            $command->output->progressAdvance();
+        }
+    );
+    $this->output->progressFinish();
+    $this->info('Memasukan scenario selesai');
 });

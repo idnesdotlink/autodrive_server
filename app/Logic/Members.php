@@ -12,10 +12,11 @@ class Members {
     public static $db_connection = 'autodrive_tip';
 
     public static function create_table(&$db) {
+        $validUntilConfig = 12;
         $db->statement('
             CREATE TABLE members (
                 id MEDIUMINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                memberId
+                memberId VARCHAR(128) NOT NULL DEFAULT \'\',
                 parentId MEDIUMINT UNSIGNED DEFAULT NULL,
                 outletId SMALLINT UNSIGNED NOT NULL DEFAULT 0,
                 name VARCHAR(128) NOT NULL,
@@ -28,10 +29,11 @@ class Members {
                 level TINYINT UNSIGNED NOT NULL DEFAULT 1,
                 qualification TINYINT UNSIGNED NOT NULL DEFAULT 1,
                 downlineCount MEDIUMINT UNSIGNED NOT NULL DEFAULT 0,
+                children MEDIUMINT UNSIGNED NOT NULL DEFAULT 0,
                 status TINYINT UNSIGNED NOT NULL DEFAULT 0,
                 created DATETIME DEFAULT NOW(),
                 updated DATETIME NOT NULL DEFAULT NOW(),
-                validUntil DATETIME NOT NULL DEFAULT \'1000-01-01 00:00:00\',
+                validUntil DATETIME NOT NULL DEFAULT DATE_ADD(NOW(), INTERVAL ' . $validUntilConfig . ' MONTH),
                 registationFee DOUBLE UNSIGNED NOT NULL DEFAULT 0
             )
         ');
@@ -248,11 +250,7 @@ class Members {
      * @param Object|null $db
      * @return integer
      */
-    public static function query_count_qualification(
-        int $id,
-        int $qualification,
-        &$db = null
-    ): int {
+    public static function query_count_qualification(int $id, int $qualification, &$db = null): int {
         $db = ($db === null) ? DB::connection(self::$db_connection) : $db;
         $query = '
             WITH RECURSIVE descendants AS
@@ -297,7 +295,7 @@ class Members {
         $next = $current + 1;
         // $count = self::query_count_qualification($id, $current, $db);
         $required = Levels::$levels[$next]['requirement'];
-        $count = MemberQualification::getStat('q' . $current, $id, $db);
+        $count = MemberQualification::get_qualification('q' . $current, $id, $db);
         return ($count >= $required);
     }
 
@@ -640,5 +638,9 @@ class Members {
      */
     public static function members_statistic(int $id = null): Collection {
 
+    }
+
+    public static function test() {
+        print_r('pusing');
     }
 }

@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 namespace App\Logic;
 use Illuminate\Support\Facades\{DB, Storage};
@@ -136,31 +137,5 @@ class Installer {
                 ');
             }
         );
-    }
-
-    /**
-     *
-     *
-     * @param Array $item
-     * @return Array
-     */
-    public static function set_dummy_name(Array $item): Array {
-        $item['name'] = 'name_' . $item['id'];
-        return $item;
-    }
-
-    /**
-     * Undocumented function
-     *
-     * @return Collection
-     */
-    public static function get_dummy_members(): Collection {
-        $data = Storage::disk('local')->get('data/members-level-5.json');
-        $data = json_decode($data, true);
-        $collection = collect($data);
-        $collection->transform(function ($item) {
-            return self::set_dummy_name($item);
-        });
-        return $collection;
     }
 }

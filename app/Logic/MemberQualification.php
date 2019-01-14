@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 namespace App\Logic;
 use Illuminate\Support\Facades\{DB, Storage};
@@ -30,10 +31,7 @@ class MemberQualification {
         $db->statement('DROP TABLE IF EXISTS MemberQualification');
     }
 
-    public static function increment_descendant_level(&$db) {
-    }
-
-    public static function getAllStat($memberId, &$db) {
+    public static function get_all_qualification($memberId, &$db) {
         $query = '
             SELECT *
             FROM MemberQualification
@@ -51,7 +49,7 @@ class MemberQualification {
      * @param object $db
      * @return integer
      */
-    public static function getStat(string $key, int $memberId = null, Object &$db): int {
+    public static function get_qualification(string $key, int $memberId = null, Object &$db): int {
         $sql = '
             SELECT *
             FROM MemberQualification
