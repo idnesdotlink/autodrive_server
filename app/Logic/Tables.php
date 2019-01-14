@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Logic;
 use Illuminate\Support\Facades\{DB, Storage};
+use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 
 class Tables {
@@ -39,7 +40,13 @@ class Tables {
         );
     }
 
-    public static function recreate_command(&$command) {
+    /**
+     * Undocumented function
+     *
+     * @param Object $command
+     * @return void
+     */
+    public static function recreate_command(Command &$command): void {
         sleep(1);
         $command->info('Warning: This action will drop and recreate all tables !!');
         sleep(1);
@@ -61,11 +68,28 @@ class Tables {
         }
     }
 
-    public static function drop_command(&$command) {
-
+    public static function drop_command(Command &$command): void {
+        $tables = self::all();
+        $tables = $tables->prepend('all');
+        $tables = $tables->all();
+        $table = $command->choice(
+            'Select Table to Delete ?',
+            $tables
+        );
+        if ($table === 'all') {
+            $command->info('Delete All Table');
+        } else {
+            $command->info('Delete Table ' . $table);
+        }
     }
 
-    public static function list_command(&$command) {
+    /**
+     * Undocumented function
+     *
+     * @param Command $command
+     * @return void
+     */
+    public static function list_command(Command &$command): void {
         $tables = self::all();
         $transform_table = function ($val) {
             return [$val];
