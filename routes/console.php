@@ -2,7 +2,7 @@
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\{DB, Storage, Artisan};
-use App\Logic\{Members, Levels, Installer, MemberQualification, Scenario, Tables};
+use App\Logic\{Members, Levels, Installer, MemberQualification, Scenario, Tables, Address};
 
 Artisan::command('scenario:json', function () {
     Scenario::json_scenario_console();
@@ -40,4 +40,9 @@ Artisan::command('security:ask', function () {
 Artisan::command('security:password', function () {
     $password = $this->secret('What is your password?');
     $this->info("This is really secure. Your password is $password");
+})->describe('Display table list');
+
+Artisan::command('abc', function () {
+    $address = Address::get_regency_by_provinceId('12');
+    print_r($address);
 })->describe('Display table list');

@@ -4,10 +4,10 @@ declare(strict_types=1);
 namespace App\Logic;
 use Illuminate\Support\Facades\{DB, Storage};
 use Illuminate\Support\Collection;
-use App\Logic\{Levels, MemberQualification};
+use App\Logic\{Levels, MemberQualification, HasTableInterface};
 use Illuminate\Database\ConnectionInterface;
 // use stdClass;
-class Members {
+class Members implements HasTableInterface {
 
     public static $table_name = 'members';
     public static $db_connection = 'autodrive_tip';
@@ -27,21 +27,24 @@ class Members {
                 parentId MEDIUMINT UNSIGNED DEFAULT NULL,
                 outletId SMALLINT UNSIGNED NOT NULL DEFAULT 0,
                 name VARCHAR(128) NOT NULL,
+                gender CHAR(1) NOT NULL DEFAULT \'L\',
                 mobile_phone VARCHAR(32) NOT NULL DEFAULT \'\',
                 mobile_phone_secondary VARCHAR(32) NOT NULL DEFAULT \'\',
-                email VARCHAR(32) NOT NULL DEFAULT \'\',
+                email VARCHAR(32) NOT NULL DEFAULT NULL,
+                province TINTYINT(2) UNSIGNED DEFAULT NULL,
+                regency TINYINT(2) UNSIGNED ZEROFILL DEFAULT NULL,
+                district TINYINT(3) UNSIGNED ZEROFILL DEFAULT NULL,
+                village TINYINT(3) UNSIGNED ZEROFILL DEFAULT NULL,
                 address TEXT,
-                city VARCHAR(128) NOT NULL DEFAULT \'\',
-                province VARCHAR(128) NOT NULL DEFAULT \'\',
-                level TINYINT UNSIGNED NOT NULL DEFAULT 1,
-                qualification TINYINT UNSIGNED NOT NULL DEFAULT 1,
+                level TINYINT(1) UNSIGNED NOT NULL DEFAULT 1,
+                qualification TINYINT(1) UNSIGNED NOT NULL DEFAULT 1,
                 downlineCount MEDIUMINT UNSIGNED NOT NULL DEFAULT 0,
                 children MEDIUMINT UNSIGNED NOT NULL DEFAULT 0,
-                status TINYINT UNSIGNED NOT NULL DEFAULT 0,
+                status TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
                 created DATETIME DEFAULT NOW(),
                 updated DATETIME NOT NULL DEFAULT NOW(),
                 validUntil DATETIME NOT NULL DEFAULT DATE_ADD(NOW(), INTERVAL ' . $validUntilConfig . ' MONTH),
-                registationFee DOUBLE UNSIGNED NOT NULL DEFAULT 0
+                registrationFee DOUBLE UNSIGNED NOT NULL DEFAULT 0
             )
         ');
     }

@@ -5,8 +5,10 @@ namespace App\Logic;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
+use Illuminate\Database\ConnectionInterface;
+use App\Logic\{HasTableInterface};
 
-class Levels {
+class Levels implements HasTableInterface {
 
     const ID_9 = 9;
     const ID_8 = 8;
@@ -57,11 +59,13 @@ class Levels {
         $this->db = DB::connection(self::DB_DATABASE);
     }
 
-    public function getLevels() {
-
-    }
-
-    public function create_table(&$db) {
+    /**
+     * Undocumented function
+     *
+     * @param ConnectionInterface $db
+     * @return void
+     */
+    public static function create_table(ConnectionInterface &$db = null): void {
         $db = ($db === null) ? DB::connection(self::$db_connection) : $db;
         $db->statement('
             CREATE TABLE levels (
@@ -76,9 +80,19 @@ class Levels {
         ');
     }
 
-    public function drop_table(&$db) {
+    /**
+     * Undocumented function
+     *
+     * @param ConnectionInterface $db
+     * @return void
+     */
+    public static function drop_table(ConnectionInterface &$db = null): void {
         $db = ($db === null) ? DB::connection(self::$db_connection) : $db;
         $db->statement('DROP TABLE IF EXISTS levels');
+    }
+
+    public function getLevels() {
+
     }
 
     public function levelCountById($id) {

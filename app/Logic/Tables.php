@@ -10,7 +10,9 @@ use Illuminate\Database\ConnectionInterface;
 class Tables {
     public static $connection_name = 'autodrive_tip';
     public static $registers = [
-        'Members'
+        'Members',
+        'Villages',
+        ''
     ];
 
     public static $migrations_register = [];
@@ -54,6 +56,44 @@ class Tables {
                 $value::drop_table($db);
             }
         );
+    }
+
+    /**
+     * Undocumented function
+     *
+     * @return Collection
+     */
+    public static function get_registered(): Collection {
+        $register = collect(self::$registers);
+        return $register;
+    }
+
+    /**
+     * Undocumented function
+     *
+     * @param Command $command
+     * @return void
+     */
+    public static function recreate_registered_command(Command &$command): void {
+        sleep(1);
+        $command->info('Warning: This action will drop and recreate all tables !!');
+        sleep(1);
+        $agree = $command->choice(
+            'Are You Sure ?',
+            ['yes', 'no']
+        );
+        $agree = $agree === 'yes';
+        if ($agree) {
+            try {
+                self::down();
+                self::up();
+                $command->info('Table Recreate Success');
+            } catch(Exception $error) {
+                $command->info('Table Recrete Failed');
+            }
+        } else {
+            $command->line('Aborted !!');
+        }
     }
 
     /**

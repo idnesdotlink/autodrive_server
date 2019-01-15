@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use App\Logic\{Address};
 
 Route::middleware([])->group(
     function () {
@@ -12,6 +13,22 @@ Route::middleware([])->group(
         Route::get('/companies/{company}/members', function (Request $request) {
             return [$request->company];
         })->name('companies.members.index');
+
+        Route::get('/provinces', function (Request $request) {
+            return response()->json(Address::get_all_provinces());
+        });
+
+        Route::get('/regencies/{province}', function (Request $request, $province) {
+            return response()->json(Address::get_regency_by_provinceId($province));
+        });
+
+        Route::get('/districts/{regency}', function (Request $request, $regency) {
+            return response()->json(Address::get_district_by_regencyId($regency));
+        });
+
+        Route::get('/villages/{district}', function (Request $request, $district) {
+            return response()->json(Address::get_village_by_districtId($district));
+        });
 
         Route::get('/members', function (Request $request) {
             return 'members';
