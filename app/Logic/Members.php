@@ -23,7 +23,7 @@ class Members implements HasTableInterface {
         $db->statement('
             CREATE TABLE members (
                 id MEDIUMINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                memberId VARCHAR(128) NOT NULL DEFAULT \'\',
+                memberId VARBINARY(16) NOT NULL DEFAULT \'\',
                 parentId MEDIUMINT UNSIGNED DEFAULT NULL,
                 outletId SMALLINT UNSIGNED NOT NULL DEFAULT 0,
                 name VARCHAR(128) NOT NULL,
@@ -44,7 +44,8 @@ class Members implements HasTableInterface {
                 created DATETIME DEFAULT NOW(),
                 updated DATETIME NOT NULL DEFAULT NOW(),
                 validUntil DATETIME NOT NULL DEFAULT DATE_ADD(NOW(), INTERVAL ' . $validUntilConfig . ' MONTH),
-                registrationFee DOUBLE UNSIGNED NOT NULL DEFAULT 0
+                registrationFee DOUBLE UNSIGNED NOT NULL DEFAULT 0,
+                UNIQUE KEY memberId (memberId)
             )
         ');
     }
