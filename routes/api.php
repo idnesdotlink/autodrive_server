@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use App\Logic\{Address};
+use Faker\Factory;
 
 Route::middleware([])->group(
     function () {
@@ -30,24 +31,48 @@ Route::middleware([])->group(
             return response()->json(Address::get_village_by_districtId($district));
         });
 
-        Route::get('/members', function (Request $request) {
-            return 'members';
+        Route::get('/members.json', function (Request $request) {
+            $faker = Factory::create();
+            $mem = [];
+            for($i = 1; $i < 100; $i++) {
+                $mem[] = [
+                    $faker->name(),
+                    $faker->uuid(),
+                    $faker->randomElement([1,2,3,4,5,6,7,8])
+                ];
+            }
+            $size = sizeof($mem);
+            return response()->json([$size, $mem]);
+            // echo json_encode($mem);
         })->name('members.index');
 
         Route::post('/members', function (Request $request) {
+            $faker = Factory::create();
+            $mem = [];
+            for($i = 1; $i < 100; $i++) {
+                $mem[] = [
+                    $faker->name(),
+                    $faker->uuid(),
+                    $faker->randomElement([1,2,3,4,5,6,7,8])
+                ];
+            }
+            $size = sizeof($mem);
+            return response()->json([$size, $mem]);
 
-            return response()->json($request->input('nama'));
+            // return response()->json($request->input());
 
             // return response(json_encode($request->input()), 200)
             // ->header('Content-Type', 'application/json');
+            // $faker = Factory::create();
+            // echo $faker->name();
         })->name('members.index.post');
 
         Route::get('/members/{member}/token', function (Request $request) {
             return $request->member . '-token';
         })->name('members.token');
 
-        Route::get('/members/{member}', function (Request $request) {
-            return $request->member;
+        Route::post('/members/{member}', function (Request $request) {
+            return response()->json($request->member);
         })->name('members.detail');
 
         Route::get('/members/{member}/payment', function (Request $request) {
