@@ -26,3 +26,7 @@ Route::prefix('members')->group(function () {
         echo 'test';
     });
 });
+
+Auth::routes();
+
+Route::get('/home', 'HomeController@index')->name('home');

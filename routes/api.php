@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use App\Logic\{Address};
@@ -83,9 +84,21 @@ Route::middleware([])->group(
             return 0;
         })->name('db.api');
 
-        Route::get('/users', function (Request $request) {
-            return 0;
-        })->name('users.index');
+        Route::post('/test/login', function (Request $request) {
+            $credentials = request(['email', 'password']);
+            if (! $token = auth()->attempt($credentials)) {
+                return response()->json(['error' => 'Unauthorized'], 401);
+            }
+            return response()->json([$token], 200);
+        })->name('users.authenticate');
+
+        Route::post('/users/authenticate', function (Request $request) {
+            $credentials = request(['email', 'password']);
+            if (! $token = auth()->attempt($credentials)) {
+                return response()->json(['error' => 'Unauthorized'], 401);
+            }
+            return response()->json([$token], 200);
+        })->name('users.authenticate');
 
         Route::get('/users/{user}/token', function (Request $request) {
             return [$request->user];
