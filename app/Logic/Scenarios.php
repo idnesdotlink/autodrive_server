@@ -5,14 +5,14 @@ namespace App\Logic;
 use Illuminate\Support\Facades\{DB, Storage, Artisan};
 use App\Logic\{Members, Levels, Installer, MemberQualification};
 
-class Scenario {
+class Scenarios {
     public static function load_scenario_console(&$console, &$output) {
         $levels = Levels::$levels;
         $levels = collect($levels);
         $scenario_mapper = function ($scenario) {
             return $scenario['name'];
         };
-        $scenarios = $levels->map($scenario_mapper)->toArray();   
+        $scenarios = $levels->map($scenario_mapper)->toArray();
         $level = $console->choice(
             'scenario level apa yang akan di load',
             $scenarios
