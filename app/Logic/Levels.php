@@ -91,8 +91,17 @@ class Levels implements HasTableInterface {
         $db->statement('DROP TABLE IF EXISTS levels');
     }
 
-    public function getLevels() {
-
+    public static function getLevels() {
+        $level = [[ 'id' => 1, 'name' => 'Bronze', 'bonus_percentage' => 10 ],
+        [ 'id' => 2, 'name' => 'Silver', 'bonus_percentage' => 10 ],
+        [ 'id' => 3, 'name' => 'Gold', 'bonus_percentage' => 10 ],
+        [ 'id' => 4, 'name' => 'Diamond', 'bonus_percentage' => 10 ],
+        [ 'id' => 5, 'name' => 'Double Diamond', 'bonus_percentage' => 10 ],
+        [ 'id' => 6, 'name' => 'Triple Diamond', 'bonus_percentage' => 10 ],
+        [ 'id' => 7, 'name' => 'Ambasador', 'bonus_percentage' => 10 ],
+        [ 'id' => 8, 'name' => 'Double Ambasador', 'bonus_percentage' => 10 ],
+        [ 'id' => 9, 'name' => 'Triple Ambasador', 'bonus_percentage' => 10 ]];
+        return $level;
     }
 
     public function levelCountById($id) {

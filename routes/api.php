@@ -4,19 +4,11 @@ use Ramsey\Uuid\Uuid;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use App\Logic\{Addresses};
+use App\Logic\{Addresses, Levels};
 use Faker\Factory;
 
 Route::middleware([])->group(
     function () {
-        Route::get('/companies/{company}', function (Request $request) {
-            return $request->company;
-        })->name('companies.index');
-
-        Route::get('/companies/{company}/members', function (Request $request) {
-            return [$request->company];
-        })->name('companies.members.index');
-
         Route::get('/provinces', function (Request $request) {
             return response()->json(Addresses::get_all_provinces());
         });
@@ -89,10 +81,6 @@ Route::middleware([])->group(
             return $request->member;
         })->name('members.payment');
 
-        Route::get('/psg', function (Request $request) {
-            return 0;
-        })->name('db.api');
-
         Route::post('/users/authenticate', function (Request $request) {
             $credentials = request(['email', 'password']);
             $user = App\User::find(1);
@@ -112,32 +100,33 @@ Route::middleware([])->group(
         });
 
         Route::post('/regencies', function (Request $request) {
-            return response()->json(Addresses::get_regency_by_provinceId((string)$request->province));
+            $regencies = Addresses::get_regency_by_provinceId((string)$request->province);
+            return response()->json($regencies);
         });
 
         Route::post('/districts', function (Request $request) {
-            // return response()->json($request->regency);
-            return response()->json(Addresses::get_district_by_regencyId((string)$request->regency));
+            $districts = Addresses::get_district_by_regencyId((string)$request->regency);
+            return response()->json($districts);
         });
 
         Route::post('/villages', function (Request $request) {
-            return response()->json(Addresses::get_village_by_districtId((string)$request->district));
+            $villages = Addresses::get_village_by_districtId((string)$request->district);
+            return response()->json($vilages);
         });
 
         Route::patch('/account', function (Request $request) {
             return response()->json($request->all());
         });
 
-        Route::get('/products', function (Request $request) {
-            return 'products';
-        })->name('products.index');
+        Route::post('/level', function (Request $request) {
+            $levels = Levels::getLevels();
+            return response()->json($levels);
+        });
 
-        Route::get('/products/{product}', function (Request $request) {
-            return [$request->product];
-        })->name('products.detail');
-
-        Route::get('/payments/{payment}', function (Request $request) {
-            return [$request->payment];
-        })->name('payments.detail');
+        Route::post('/level/detail', function (Request $request) {
+            $levels = Levels::getLevels();
+            $l = collect($levels)->where('id', $request->id)->first();
+            return response()->json($l);
+        });
     }
 );
