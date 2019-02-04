@@ -11,8 +11,17 @@ class Tables {
     public static $connection_name = 'autodrive_tip';
     public static $registers = [
         'Members',
-        'Villages',
-        ''
+        'Provinces',
+        'Regencies',
+        'Districts',
+        'Villages'
+    ];
+
+    public static $seeds = [
+        'Provinces',
+        'Regencies',
+        'Districts',
+        'Villages'
     ];
 
     public static $migrations_register = [];
@@ -54,6 +63,40 @@ class Tables {
             function ($value) use($db) {
                 $value = 'App\\Logic\\' . $value;
                 $value::drop_table($db);
+            }
+        );
+    }
+
+    /**
+     * Undocumented function
+     *
+     * @return void
+     */
+    public static function seed(): void {
+        $db = self::db();
+        $seeds = collect(self::$seeds);
+        $seeds->each(
+            function ($value) use($db) {
+                $storage = Storage::disk('local');
+                $data = $storage->get('seed/' . $value . '.json');
+                $data = json_decode($data, true);
+                ['columns' => $columns, 'rows' => $rows] = $data;
+                $columns = collect($columns);
+                $rows = collect($rows);
+                $rows = $rows->map(
+                    function ($item) use($columns) {
+                        return $columns->combine($item)->all();
+                    }
+                );
+                $chunk = $rows->chunk(500);
+                foreach($chunk as $chunked) {
+                    try {
+                        DB::table( strtolower($value))->insert($chunked->all());
+                    } catch (Exception $error) {
+
+                    }
+                }
+                // DB::table( strtolower($value))->insert($rows);
             }
         );
     }
@@ -118,6 +161,33 @@ class Tables {
                 $command->info('Table Recreate Success');
             } catch(Exception $error) {
                 $command->info('Table Recrete Failed');
+            }
+        } else {
+            $command->line('Aborted !!');
+        }
+    }
+
+    /**
+     * Undocumented function
+     *
+     * @param Command $command
+     * @return void
+     */
+    public static function seed_command(Command &$command): void {
+        sleep(1);
+        $command->info('Warning: This action will reseed all tables !!');
+        sleep(1);
+        $agree = $command->choice(
+            'Are You Sure ?',
+            ['yes', 'no']
+        );
+        $agree = $agree === 'yes';
+        if ($agree) {
+            try {
+                self::seed();
+                $command->info('Table Seed Success');
+            } catch(Exception $error) {
+                $command->info('Table Seed Failed');
             }
         } else {
             $command->line('Aborted !!');

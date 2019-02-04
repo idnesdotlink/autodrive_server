@@ -27,6 +27,11 @@ Artisan::command('tables:drop', function () {
     Tables::drop_command($command);
 });
 
+Artisan::command('tables:seed', function () {
+    $command = $this;
+    Tables::seed_command($command);
+});
+
 Artisan::command('tables:list', function () {
     $command = $this;
     Tables::list_command($command);

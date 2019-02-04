@@ -16,10 +16,12 @@ class Provinces implements HasTableInterface {
      * @return void
      */
     public static function create_table(ConnectionInterface &$db = null): void {
+        $db = ($db === null) ? DB::connection(self::$db_connection) : $db;
         $sql = '
             CREATE TABLE provinces (
-                provinceId TINYINT(2) UNSIGNED DEFAULT NULL,
-                name VARCHAR(128) NOT NULL DEFAULT \'\'
+                provinceId CHAR(2),
+                name VARCHAR(128) NOT NULL DEFAULT \'\',
+                UNIQUE KEY province (provinceId)
             )
         ';
         $db->statement($sql);

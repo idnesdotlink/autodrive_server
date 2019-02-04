@@ -18,10 +18,11 @@ class Districts implements HasTableInterface {
     public static function create_table(ConnectionInterface &$db = null): void {
         $sql = '
             CREATE TABLE districts (
-                provinceId TINYINT(2) UNSIGNED,
-                regencyId TINYINT(2) UNSIGNED ZEROFILL,
-                districtId TINYINT(3) UNSIGNED ZEROFILL,
-                name VARCHAR(128) NOT NULL DEFAULT \'\'
+                regencyId CHAR(4) NOT NULL DEFAULT \'\',
+                districtId CHAR(7) NOT NULL DEFAULT \'\',
+                name VARCHAR(128) NOT NULL DEFAULT \'\',
+                UNIQUE KEY district (districtId),
+                INDEX regency (regencyId, districtId)
             )
         ';
         $db->statement($sql);
@@ -33,7 +34,11 @@ class Districts implements HasTableInterface {
      * @param ConnectionInterface $db
      * @return void
      */
-    public static function drop_table(ConnectionInterface &$db = null): void {}
+    public static function drop_table(ConnectionInterface &$db = null): void {
+        $db = ($db === null) ? DB::connection(self::$db_connection) : $db;
+        $sql = 'DROP TABLE IF EXISTS districts';
+        $db->statement($sql);
+    }
 
     public static function get_all() {
         return

@@ -16,11 +16,14 @@ class Regencies implements HasTableInterface {
      * @return void
      */
     public static function create_table(ConnectionInterface &$db = null): void {
+        $db = ($db === null) ? DB::connection(self::$db_connection) : $db;
         $sql = '
             CREATE TABLE regencies (
-                provinceId TINYINT(2) UNSIGNED,
-                regencyId TINYINT(2) UNSIGNED ZEROFILL,
-                name VARCHAR(128) NOT NULL DEFAULT \'\'
+                provinceId CHAR(2),
+                regencyId CHAR(2),
+                name VARCHAR(128) NOT NULL DEFAULT \'\',
+                UNIQUE KEY regency (regencyId),
+                INDEX province (provinceId, regencyId)
             )
         ';
         $db->statement($sql);
@@ -33,9 +36,8 @@ class Regencies implements HasTableInterface {
      * @return void
      */
     public static function drop_table(ConnectionInterface &$db = null): void {
-        $sql = '
-
-        ';
+        $db = ($db === null) ? DB::connection(self::$db_connection) : $db;
+        $sql = 'DROP TABLE IF EXISTS regencies';
         $db->statement($sql);
     }
 

@@ -4,69 +4,14 @@ use Ramsey\Uuid\Uuid;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use App\Logic\{Addresses, Levels};
 use Faker\Factory;
+use App\Logic\{Addresses, Levels, Mock};
 
 Route::middleware([])->group(
     function () {
-        Route::get('/provinces', function (Request $request) {
-            return response()->json(Addresses::get_all_provinces());
-        });
-
-        Route::get('/regencies/{province}', function (Request $request, $province) {
-            return response()->json(Addresses::get_regency_by_provinceId($province));
-        });
-
-        Route::get('/districts/{regency}', function (Request $request, $regency) {
-            return response()->json(Addresses::get_district_by_regencyId($regency));
-        });
-
-        Route::get('/villages/{district}', function (Request $request, $district) {
-            return response()->json(Addresses::get_village_by_districtId($district));
-        });
-
-        Route::get('/members.json', function (Request $request) {
-            $faker = Factory::create();
-            $mem = [];
-            for($i = 1; $i < 100; $i++) {
-                $mem[] = [
-                    $faker->name(),
-                    $faker->uuid(),
-                    $faker->randomElement([1,2,3,4,5,6,7,8])
-                ];
-            }
-            $size = sizeof($mem);
-            return response()->json([$size, $mem]);
-            // echo json_encode($mem);
-        })->name('members.index');
 
         Route::post('/members', function (Request $request) {
-            $faker = Factory::create();
-            $mem = [];
-            for($i = 1; $i < 100; $i++) {
-                $mem[] = [
-                    $faker->name(),
-                    Uuid::uuid4(),
-                    $faker->randomElement([1,2,3,4,5,6,7,8])
-                ];
-            }
-            $size = sizeof($mem);
-            return response()->json(
-                [
-                    'list' => $mem,
-                    'meta' => [
-                        'size' => $size,
-                        'column' => ['name', 'id', 'level']
-                    ]
-                ]
-            );
-
-            // return response()->json($request->input());
-
-            // return response(json_encode($request->input()), 200)
-            // ->header('Content-Type', 'application/json');
-            // $faker = Factory::create();
-            // echo $faker->name();
+            return Mock::members();
         })->name('members.index.post');
 
         Route::get('/members/{member}/token', function (Request $request) {
@@ -127,6 +72,10 @@ Route::middleware([])->group(
             $levels = Levels::getLevels();
             $l = collect($levels)->where('id', $request->id)->first();
             return response()->json($l);
+        });
+
+        Route::post('/verify', function (Request $request) {
+            print_r($request->key);
         });
     }
 );

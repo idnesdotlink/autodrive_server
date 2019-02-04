@@ -19,15 +19,11 @@ class Villages implements HasTableInterface {
         $db = ($db === null) ? DB::connection(self::$db_connection) : $db;
         $sql = '
             CREATE TABLE villages (
-                provinceId TINYINT(2) UNSIGNED,
-                regencyId TINYINT(2) UNSIGNED ZEROFILL,
-                districtId TINYINT(3) UNSIGNED ZEROFILL,
-                villageId TINYINT(3) UNSIGNED ZEROFILL,
+                districtId CHAR(7) NOT NULL DEFAULT \'\',
+                villageId CHAR(10) NOT NULL DEFAULT \'\',
                 name VARCHAR(128) NOT NULL DEFAULT \'\',
-                UNIQUE KEY village (provinceId, regencyId, districtId, villageId),
-                INDEX district (provinceId, regencyId, districtId),
-                INDEX regency (provinceId, regencyId),
-                INDEX province (provinceId)
+                UNIQUE KEY village (villageId),
+                INDEX district (districtId, villageId)
             )
         ';
         $db->statement($sql);
@@ -40,6 +36,7 @@ class Villages implements HasTableInterface {
      * @return void
      */
     public static function drop_table(ConnectionInterface &$db = null): void {
+        $db = ($db === null) ? DB::connection(self::$db_connection) : $db;
         $db->statement('DROP TABLE IF EXISTS villages');
     }
 
