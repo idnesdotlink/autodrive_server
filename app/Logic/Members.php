@@ -23,13 +23,13 @@ class Members implements HasTableInterface {
         $db->statement('
             CREATE TABLE members (
                 id MEDIUMINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                memberId VARBINARY(16) NOT NULL DEFAULT \'\',
                 parentId MEDIUMINT UNSIGNED DEFAULT NULL,
-                outletId SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+                memberId VARBINARY(16) NOT NULL,
+                parentMemberId VARBINARY(16) NOT NULL,
                 name VARCHAR(128) NOT NULL,
                 gender CHAR(1) NOT NULL DEFAULT \'L\',
-                mobile_phone VARCHAR(32) NOT NULL DEFAULT \'\',
-                mobile_phone_secondary VARCHAR(32) NOT NULL DEFAULT \'\',
+                mobilePhone VARCHAR(32) NOT NULL DEFAULT \'\',
+                mobilePhoneSecondary VARCHAR(32) NOT NULL DEFAULT \'\',
                 email VARCHAR(32) NOT NULL DEFAULT \'\',
                 village CHAR(10) DEFAULT \'\',
                 address TEXT,
@@ -40,7 +40,6 @@ class Members implements HasTableInterface {
                 status TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
                 created DATETIME DEFAULT NOW(),
                 updated DATETIME NOT NULL DEFAULT NOW(),
-                validUntil DATETIME NOT NULL DEFAULT DATE_ADD(NOW(), INTERVAL ' . $validUntilConfig . ' MONTH),
                 registrationFee DOUBLE UNSIGNED NOT NULL DEFAULT 0,
                 UNIQUE KEY memberId (memberId)
             )
@@ -216,38 +215,6 @@ class Members implements HasTableInterface {
                 break;
         }
         return $term;
-    }
-
-    /**
-     * Undocumented function
-     *
-     * @param Object $db
-     * @return void
-     */
-    public static function set_grace_period(Object &$db): void {
-        $db = ($db === null) ? DB::connection(self::$db_connection) : $db;
-        $query = '
-            UPDATE members
-            SET status = 2
-            WHERE validUntil < DATE_SUB(NOW(), INTERVAL 1 MONTH)
-        ';
-        $db->update($query);
-    }
-
-    /**
-     * Undocumented function
-     *
-     * @param Object $db
-     * @return void
-     */
-    public static function set_expired(Object &$db): void {
-        $db = ($db === null) ? DB::connection(self::$db_connection) : $db;
-        $query = '
-            UPDATE members
-            SET status = 2
-            WHERE validUntil < NOW()
-        ';
-        $db->update($query);
     }
 
     /**

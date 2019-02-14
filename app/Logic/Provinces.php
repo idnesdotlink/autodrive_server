@@ -19,9 +19,9 @@ class Provinces implements HasTableInterface {
         $db = ($db === null) ? DB::connection(self::$db_connection) : $db;
         $sql = '
             CREATE TABLE provinces (
-                provinceId CHAR(2),
+                id CHAR(2),
                 name VARCHAR(128) NOT NULL DEFAULT \'\',
-                UNIQUE KEY province (provinceId)
+                UNIQUE KEY province (id)
             )
         ';
         $db->statement($sql);

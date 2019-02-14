@@ -20,10 +20,10 @@ class Villages implements HasTableInterface {
         $sql = '
             CREATE TABLE villages (
                 districtId CHAR(7) NOT NULL DEFAULT \'\',
-                villageId CHAR(10) NOT NULL DEFAULT \'\',
+                id CHAR(10) NOT NULL DEFAULT \'\',
                 name VARCHAR(128) NOT NULL DEFAULT \'\',
-                UNIQUE KEY village (villageId),
-                INDEX district (districtId, villageId)
+                UNIQUE KEY village (id),
+                INDEX district (districtId, id)
             )
         ';
         $db->statement($sql);

@@ -5,10 +5,14 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Faker\Factory;
-use App\Logic\{Addresses, Levels, Mock};
+use App\Logic\{Addresses, Levels, Mock, Authentication};
 
 Route::middleware([])->group(
     function () {
+
+        Route::post('/pusher', function (Request $request) {
+            return response()->json($request->all());
+        });
 
         Route::post('/members', function (Request $request) {
             return Mock::members();
@@ -27,17 +31,7 @@ Route::middleware([])->group(
         })->name('members.payment');
 
         Route::post('/users/authenticate', function (Request $request) {
-            $credentials = request(['email', 'password']);
-            $user = App\User::find(1);
-            if (! $token = auth()->claims([
-                'aud' => 'admin'
-            ])->setTTL(30)->attempt($credentials)) {
-                return response()->json(['error' => 'Unauthorized'], 401);
-            }
-            return response()->json([
-                'access_token' => $token,
-                'token_type' => 'bearer'
-            ], 200);
+            return Authentication::process($request);
         })->name('users.authenticate');
 
         Route::post('/provinces', function (Request $request) {
@@ -56,7 +50,7 @@ Route::middleware([])->group(
 
         Route::post('/villages', function (Request $request) {
             $villages = Addresses::get_village_by_districtId((string)$request->district);
-            return response()->json($vilages);
+            return response()->json($villages);
         });
 
         Route::patch('/account', function (Request $request) {

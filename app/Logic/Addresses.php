@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 namespace App\Logic;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\{DB, Storage};
 use Illuminate\Support\Collection;
 
 class Addresses {
@@ -50,7 +50,19 @@ class Addresses {
      * @return Collection
      */
     public static function get_all_provinces():Collection {
-        return self::from_file('provinces');
+        $db = DB::connection('autodrive_tip');
+
+        $sql = '
+            SELECT * from provinces;
+        ';
+
+        $provinces = $db->select($sql);
+
+        return collect($provinces)->map(
+            function ($area) {
+                return [$area->id, $area->name];
+            }
+        );
     }
 
     /**
@@ -60,7 +72,19 @@ class Addresses {
      * @return Collection
      */
     public static function get_regency_by_provinceId(string $id): Collection {
-        return self::from_file('regencies', $id);
+        $db = DB::connection('autodrive_tip');
+
+        $sql = '
+            SELECT * from regencies where provinceId = ' . $id . ';
+        ';
+
+        $areas = $db->select($sql);
+
+        return collect($areas)->map(
+            function ($area) {
+                return [$area->id, $area->name];
+            }
+        );
     }
 
     /**
@@ -70,7 +94,19 @@ class Addresses {
      * @return Collection
      */
     public static function get_district_by_regencyId(string $id): Collection {
-        return self::from_file('districts', $id);
+        $db = DB::connection('autodrive_tip');
+
+        $sql = '
+            SELECT * from districts where regencyId = ' . $id . ';
+        ';
+
+        $areas = $db->select($sql);
+
+        return collect($areas)->map(
+            function ($area) {
+                return [$area->id, $area->name];
+            }
+        );
     }
 
     /**
@@ -80,7 +116,19 @@ class Addresses {
      * @return Collection
      */
     public static function get_village_by_districtId(string $id): Collection {
-        return self::from_file('villages', $id);
+        $db = DB::connection('autodrive_tip');
+
+        $sql = '
+            SELECT * from villages where districtId = ' . $id . ';
+        ';
+
+        $areas = $db->select($sql);
+
+        return collect($areas)->map(
+            function ($area) {
+                return [$area->id, $area->name];
+            }
+        );
     }
 
 }

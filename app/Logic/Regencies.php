@@ -20,10 +20,10 @@ class Regencies implements HasTableInterface {
         $sql = '
             CREATE TABLE regencies (
                 provinceId CHAR(2),
-                regencyId CHAR(2),
+                id CHAR(4),
                 name VARCHAR(128) NOT NULL DEFAULT \'\',
-                UNIQUE KEY regency (regencyId),
-                INDEX province (provinceId, regencyId)
+                UNIQUE KEY regency (id),
+                INDEX province (provinceId, id)
             )
         ';
         $db->statement($sql);

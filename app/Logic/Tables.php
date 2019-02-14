@@ -77,8 +77,8 @@ class Tables {
         $seeds = collect(self::$seeds);
         $seeds->each(
             function ($value) use($db) {
-                $storage = Storage::disk('local');
-                $data = $storage->get('seed/' . $value . '.json');
+                $storage = Storage::disk('app');
+                $data = $storage->get('area/' . $value . '.json');
                 $data = json_decode($data, true);
                 ['columns' => $columns, 'rows' => $rows] = $data;
                 $columns = collect($columns);

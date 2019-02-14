@@ -19,7 +19,7 @@ class Scenarios {
         );
         sleep(1);
         $console->line("menggunakan scenario $level");
-        $storage = Storage::disk('local');
+        $storage = Storage::disk('app');
         $scenario_file = $levels->whereStrict('name', $level) ->first()['id'];
         $scenario_file = 'scenario/' . $scenario_file . '.json';
         $data = $storage->get($scenario_file);
@@ -46,7 +46,7 @@ class Scenarios {
 
     public static function json_scenario_console() {
         $pathToScenarios = 'scenario';
-        $storage = Storage::disk('local');
+        $storage = Storage::disk('app');
         if (!$storage->exists($pathToScenarios)) {
             $storage->makeDirectory($pathToScenarios);
         } else {

@@ -19,10 +19,10 @@ class Districts implements HasTableInterface {
         $sql = '
             CREATE TABLE districts (
                 regencyId CHAR(4) NOT NULL DEFAULT \'\',
-                districtId CHAR(7) NOT NULL DEFAULT \'\',
+                id CHAR(7) NOT NULL DEFAULT \'\',
                 name VARCHAR(128) NOT NULL DEFAULT \'\',
-                UNIQUE KEY district (districtId),
-                INDEX regency (regencyId, districtId)
+                UNIQUE KEY district (id),
+                INDEX regency (regencyId, id)
             )
         ';
         $db->statement($sql);
